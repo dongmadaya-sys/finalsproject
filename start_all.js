@@ -5,7 +5,18 @@ const { spawn } = require('child_process');
 
 function spawnElectron() {
   // Use npx to ensure local electron is used if installed
-  const p = spawn('npx', ['electron', '.'], { shell: true });
+  // Avoid using `shell: true` to prevent deprecation/security warnings.
+  // Prefer the local `electron` binary in `node_modules/.bin` to avoid relying on shell or npx.
+  const path = require('path');
+  const localElectron = path.join(__dirname, 'node_modules', '.bin', process.platform === 'win32' ? 'electron.cmd' : 'electron');
+  let p;
+  try {
+    p = spawn(localElectron, ['.']);
+  } catch (e) {
+    // Fallback to npx when local binary isn't available or spawn fails
+    const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    p = spawn(npxCmd, ['electron', '.'], { shell: true });
+  }
   p.stdout.setEncoding('utf8');
   p.stderr.setEncoding('utf8');
   return p;
