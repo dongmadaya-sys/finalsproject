@@ -1,0 +1,21 @@
+{
+  "name": "smart-noise-monitor",
+  "version": "0.1.0",
+  "description": "Desktop (Electron) smart noise detection and reporting system for libraries",
+  "main": "main.js",
+  "scripts": {
+    "start": "node start_all.js",
+    "sim": "node device_simulator.js",
+    "sim:multi": "node multi_device_simulator.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^25.0.0"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "ws": "^8.13.0"
+  }
+}

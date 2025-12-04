@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;">
+    <title>Smart Noise Monitor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-screen">
+      <div class="login-container">
+        <h1>Smart Noise Monitor</h1>
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required autofocus>
+          </div>
+          <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+          </div>
+          <button type="submit" class="login-btn">Login</button>
+        </form>
+        <div id="login-error" class="login-error" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="app-container" style="display:none;">
+      <header>
+        <div class="header-left">
+          <h1>Smart Noise Monitor — Library</h1>
+        </div>
+        <div class="header-right">
+          <div class="status-line"><strong>WS Server:</strong> <span id="ws-url" class="mono">ws://localhost:8080</span></div>
+          <div class="status-line"><strong>Network:</strong> <span id="net-status" class="status-pill">Checking...</span></div>
+          <div class="status-line"><strong>Noise threshold:</strong> <span id="threshold">--</span> dB</div>
+          <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+      </header>
+
+      <main>
+        <aside id="devices-panel">
+          <h2>Devices</h2>
+          <div id="devices-list" class="devices-grid"></div>
+        </aside>
+
+        <section id="charts-panel">
+          <div class="chart-top">
+            <h2>Live Noise Chart</h2>
+            <div class="chart-controls">
+              <button id="clear-alerts">Clear Alerts</button>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-card">
+              <canvas id="noiseChart" height="240"></canvas>
+            </div>
+          </div>
+
+          <div id="alerts" class="alerts-box">
+            <h3>Alerts</h3>
+            <ul id="alerts-list"></ul>
+          </div>
+        </section>
+      </main>
+      <footer>
+        <small>For capstone/demo. All free libraries used.</small>
+      </footer>
+    </div>
+
+    <div id="toast" class="toast" aria-live="polite"></div>
+    <script src="renderer.js"></script>
+  </body>
+</html>
