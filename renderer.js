@@ -1,5 +1,6 @@
 const devicesList = document.getElementById('devices-list');
 const alertsList = document.getElementById('alerts-list');
+const alertsBox = document.getElementById('alerts');
 const thresholdEl = document.getElementById('threshold');
 const toastEl = document.getElementById('toast');
 const wsUrlEl = document.getElementById('ws-url');
@@ -105,6 +106,29 @@ function initChart() {
 
   // Clear alerts button
   document.getElementById('clear-alerts')?.addEventListener('click', () => { alertsList.innerHTML = ''; });
+
+  // Alerts toggle (collapse/expand)
+  const toggleBtn = document.getElementById('toggle-alerts');
+  function setAlertsCollapsed(stateCollapsed, persist = true) {
+    if (!alertsBox || !toggleBtn) return;
+    if (stateCollapsed) {
+      alertsBox.classList.add('collapsed');
+      toggleBtn.setAttribute('aria-expanded', 'false');
+      toggleBtn.textContent = '▾';
+    } else {
+      alertsBox.classList.remove('collapsed');
+      toggleBtn.setAttribute('aria-expanded', 'true');
+      toggleBtn.textContent = '▴';
+    }
+    if (persist) localStorage.setItem('alertsCollapsed', stateCollapsed ? '1' : '0');
+  }
+
+  if (toggleBtn) {
+    // initialize from storage
+    const persisted = localStorage.getItem('alertsCollapsed');
+    setAlertsCollapsed(persisted === null ? true : persisted === '1', false);
+    toggleBtn.addEventListener('click', () => setAlertsCollapsed(!alertsBox.classList.contains('collapsed')));
+  }
 
   // Periodically check offline devices
   setInterval(() => {

@@ -60,8 +60,13 @@
             </div>
           </div>
 
-          <div id="alerts" class="alerts-box">
-            <h3>Alerts</h3>
+          <div id="alerts" class="alerts-box collapsed" aria-live="polite">
+            <div class="alerts-header">
+              <h3>Alerts</h3>
+              <div class="alerts-actions">
+                <button id="toggle-alerts" class="small-btn" aria-expanded="false" aria-controls="alerts-list">▾</button>
+              </div>
+            </div>
             <ul id="alerts-list"></ul>
           </div>
         </section>

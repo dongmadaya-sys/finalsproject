@@ -281,6 +281,32 @@ main {
   overflow:auto;
 }
 
+.alerts-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  margin-bottom:8px;
+}
+
+.alerts-actions { display:flex; gap:8px; align-items:center }
+
+.small-btn {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.06);
+  padding:6px 8px;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:14px;
+}
+
+/* Collapsed alerts: reduce height so it doesn't block the chart */
+.alerts-box.collapsed {
+  max-height:44px; /* tight bar showing header only */
+  overflow: hidden;
+  transition: max-height 220ms ease;
+}
+
 #alerts-list {
   list-style: none;
   padding: 0;
