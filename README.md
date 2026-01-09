@@ -36,3 +36,13 @@ Packaging:
 If you want, I can also:
 - Add a small REST API to record historical logs to disk.
 - Improve the sound classification using a local ML model (TensorFlow.js) for better accuracy.
+
+---
+
+## Dashboard & History (new)
+
+- **Last update timestamp** shown in the header for near-real-time data.
+- **Dashboard** includes circular gauges for **Average** and **Peak** sound levels and the **Daily Trend** and **Monthly Overview** charts (daily & monthly are shown directly on the Dashboard; the separate History tab was removed).
+- **Navigation sidebar** now includes *Devices*, *Alerts*, and *Reports* — alerts are listed in the sidebar (no pop-up toasts). Real-time noise monitoring; historical analysis (daily & monthly); visual alerts for high sound levels.
+
+These features use Chart.js and store recent aggregated samples in-memory under `state.history`. If you prefer persistent storage I can add a simple SQLite or local JSON-based DB for offline history.

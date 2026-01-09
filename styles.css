@@ -270,83 +270,17 @@ main {
   align-items:center;
 }
 
-/* Alerts */
-.alerts-box {
-  margin-top:14px;
-  background:#fff6f6cc;
-  border-radius:12px;
-  padding:12px;
-  border:1px solid #ffe1e1;
-  max-height:180px;
-  overflow:auto;
-}
+/* Sidebar alerts (compact) */
+.sidebar-alerts { margin-top:12px; border-radius:10px; padding:10px; background:#fff7f7; border:1px solid #ffecec; max-height:260px; overflow:auto }
+.sidebar-alerts .alerts-header { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px }
+.sidebar-alerts .alerts-actions { display:flex; gap:8px; align-items:center }
+.small-btn { background: transparent; border: 1px solid rgba(0,0,0,0.06); padding:6px 8px; border-radius:8px; cursor:pointer; font-size:14px; }
 
-.alerts-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:8px;
-  margin-bottom:8px;
-}
+#alerts-list, .alerts-list { list-style: none; padding: 0; margin: 0 }
+#alerts-list li, .alerts-list li { padding: 8px; border-bottom: 1px solid #fff0f0; font-size:13px }
 
-.alerts-actions { display:flex; gap:8px; align-items:center }
-
-.small-btn {
-  background: transparent;
-  border: 1px solid rgba(0,0,0,0.06);
-  padding:6px 8px;
-  border-radius:8px;
-  cursor:pointer;
-  font-size:14px;
-}
-
-/* Collapsed alerts: reduce height so it doesn't block the chart */
-.alerts-box.collapsed {
-  max-height:44px; /* tight bar showing header only */
-  overflow: hidden;
-  transition: max-height 220ms ease;
-}
-
-#alerts-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-#alerts-list li {
-  padding: 8px;
-  border-bottom: 1px solid #fff0f0;
-  font-size:14px;
-}
-
-/* Toast */
-.toast {
-  position: fixed;
-  right: 24px;
-  bottom: 30px;
-  min-width:260px;
-  pointer-events:none;
-}
-
-.toast .msg {
-  background: #111827;
-  color:#fff;
-  padding:12px 16px;
-  border-radius:12px;
-  margin-top:8px;
-  opacity:0.95;
-}
-
-/* Flash animation for alerts */
-.flash {
-  animation: flash 700ms ease-in-out;
-}
-
-@keyframes flash {
-  0% { box-shadow: 0 0 0 rgba(255,0,0,0.0) }
-  50% { box-shadow: 0 0 18px rgba(255,0,0,0.25) }
-  100% { box-shadow: 0 0 0 rgba(255,0,0,0.0) }
-}
+/* remove popup/toast and flash styles */
+/* (toast and .flash styles removed by design) */
 
 /* Footer */
 footer {
@@ -360,11 +294,11 @@ footer {
 .chart-wrap {
   flex:1;
   display:flex;
-  align-items:center;
-  background: linear-gradient(180deg,#071028 0%, #0f172a 60%); /* deep tech gradient */
+  align-items:flex-start; /* align cards to the top so they can expand */
+  background: transparent; /* removed dark gradient so cards show their light backgrounds */
   border-radius: 16px;
   padding: 18px;
-  box-shadow: 0 12px 40px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  box-shadow: none; /* remove heavy dark shadow */
 }
 
 canvas#noiseChart {
@@ -375,11 +309,13 @@ canvas#noiseChart {
 
 .chart-card {
   width: 100%;
-  height: 100%;
+  height: auto; /* allow cards to grow with their content */
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(7,10,20,0.3), rgba(7,10,20,0.0));
+  background: linear-gradient(180deg,#ffffff,#fbfdff);
   padding: 18px;
   box-sizing: border-box;
+  color: #0f172a;
+  min-height: 260px; /* ensure a comfortable default size */
 }
 
 /* Neon gradient line shadow */
@@ -418,24 +354,68 @@ header h1 { font-weight: 700; letter-spacing: 0.2px; }
 .meter { width:170px; height:12px; background: linear-gradient(180deg,#f8fafc,#eef2f7); border-radius:8px }
 .meter .fill { transition: width 420ms cubic-bezier(.22,.9,.32,1); box-shadow: 0 6px 18px rgba(59,130,246,0.08) }
 
-/* Chart card deeper */
-.chart-card { background: linear-gradient(180deg, rgba(7,10,20,0.48), rgba(7,10,20,0.06)); padding:18px; border-radius:14px; box-shadow: 0 18px 50px rgba(2,6,23,0.6) }
+/* Chart card (light-by-default) */
+.chart-card { background: linear-gradient(180deg,#ffffff,#fbfdff); padding:18px; border-radius:12px; box-shadow: 0 10px 28px rgba(2,6,23,0.06); color: #0f172a }
 
-/* Alerts and toast */
-.alerts-box { background: linear-gradient(180deg,#fff7f8,#fffafc); border:1px solid #ffecec; box-shadow: 0 12px 40px rgba(2,6,23,0.04) }
+/* Hide/show utility */
+.hidden { display: none !important }
+
+/* Prevent charts from overstretching and make them fit the container */
+.dashboard-view .chart-card { max-width: 100%; margin: 0 auto }
+.dashboard-view .chart-card canvas { height: 380px !important; max-height: 800px !important }
+#monthlyChart { height: 420px !important }
+/* Allow more vertical space for daily/monthly charts so they are more readable */
+
+/* Sidebar alerts visual tweaks */
+.sidebar-alerts { box-shadow: 0 10px 28px rgba(2,6,23,0.06); }
 #alerts-list li { display:flex; justify-content:space-between; gap:12px; align-items:center }
 .alert-pill { background: rgba(17,24,39,0.9); color:#fff; padding:10px 14px; border-radius:16px; box-shadow:0 10px 30px rgba(2,6,23,0.25); }
-.toast .msg { background: linear-gradient(90deg,#071225,#041021); box-shadow: 0 14px 36px rgba(2,6,23,0.45) }
 
 /* Scrollbar style for device list and alerts */
-.devices-grid::-webkit-scrollbar, .alerts-box::-webkit-scrollbar { width:10px }
-.devices-grid::-webkit-scrollbar-thumb, .alerts-box::-webkit-scrollbar-thumb { background: linear-gradient(180deg,#cfe6ff,#a7d0ff); border-radius:10px }
-.devices-grid::-webkit-scrollbar-track, .alerts-box::-webkit-scrollbar-track { background: transparent }
+.devices-grid::-webkit-scrollbar, .sidebar-alerts::-webkit-scrollbar { width:10px }
+.devices-grid::-webkit-scrollbar-thumb, .sidebar-alerts::-webkit-scrollbar-thumb { background: linear-gradient(180deg,#cfe6ff,#a7d0ff); border-radius:10px }
+.devices-grid::-webkit-scrollbar-track, .sidebar-alerts::-webkit-scrollbar-track { background: transparent }
 
 /* responsive */
 @media (max-width: 880px) { main { grid-template-columns: 1fr; } .header-right { display:none } }
 
 /* small utility */
 .muted { color:#94a3b8 }
+
+/* Tabs */
+.tabs { display:flex; gap:8px; margin-bottom:6px }
+.tabs .tab { background:transparent; color:#cfe6ff; border:1px solid rgba(255,255,255,0.04); padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:700 }
+.tabs .tab.active { background: linear-gradient(90deg,#0677c8,#3b82f6); color:#fff }
+
+/* Panel title */
+.panel-title { margin: 0 12px 0 0; font-size:16px }
+
+/* Dashboard gauges (light-themed, separate from chart) */
+.dashboard-gauges { display:flex; gap:18px; margin:14px 0; justify-content:flex-start }
+.dashboard-gauges .gauge-card { width:150px; text-align:center; padding:12px; background: linear-gradient(180deg,#ffffff,#fbfdff); color:#0f172a; border-radius:10px; box-shadow: 0 10px 28px rgba(2,6,23,0.06) }
+.dashboard-gauges .gauge-card h3 { margin:6px 0 }
+.dashboard-gauges .gauge-card canvas { display:block; margin:0 auto }
+.gauge-value { margin-top:8px; font-weight:800; font-size:18px }
+
+/* sidebar nav */
+.sidebar-nav ul { list-style:none; padding:0; margin:0 0 12px 0 }
+.sidebar-nav .nav-item { padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:700; color:#e6f3ff; margin-bottom:6px; background: transparent }
+.sidebar-nav .nav-item.active { background: linear-gradient(90deg,#0ea5e9,#2563eb); box-shadow: 0 10px 30px rgba(2,6,23,0.12) }
+
+/* History view: stacked vertically (one above the other) */
+.history-view { display:flex; gap:14px; flex-direction:column; align-items:stretch }
+.history-view .chart-card { width:100%; min-height:180px; background: linear-gradient(180deg,#ffffff,#fbfdff); color:#0f172a; box-shadow: 0 10px 28px rgba(2,6,23,0.06); padding:12px }
+
+/* Dashboard view stacked charts */
+.dashboard-view { width:100%; display:flex; flex-direction:column; gap:14px; align-items:stretch; flex:1; }
+.dashboard-view .chart-card { width:100%; min-height:420px; background: linear-gradient(180deg,#ffffff,#fbfdff); color:#0f172a; box-shadow: 0 10px 28px rgba(2,6,23,0.06); padding:18px; box-sizing:border-box; margin:0; }
+
+/* Canvas sizing for better fit */
+.chart-card canvas { width:100% !important; height:420px !important; max-height:1000px !important }
+
+@media (max-width: 880px) { .history-view { flex-direction:column } }
+
+/* highlight high noise bars */
+.high-bar { background: rgba(239,68,68,0.18) }
 
 /* end appended styles */

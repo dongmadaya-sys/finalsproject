@@ -6,6 +6,17 @@ const dns = require('dns');
 const os = require('os');
 const SoundClassifier = require('./sound_classifier');
 
+// Try to enable electron-reload for automatic reloads during development.
+// This is optional — if `electron-reload` isn't installed the app will continue to work.
+try {
+  require('electron-reload')(__dirname, {
+    electron: require('electron')
+  });
+  console.log('✓ electron-reload enabled');
+} catch (e) {
+  // ignore if not available
+}
+
 // Disable cache to avoid permission issues on Windows
 app.disableHardwareAcceleration();
 
@@ -199,6 +210,13 @@ async function startWebSocketServer() {
             soundType: classifiedSoundType,
             timestamp: timestamp || Date.now()
           };
+
+          // Keep a short history of recent samples per-device for replay on UI load
+          devices[deviceId].history = devices[deviceId].history || [];
+          devices[deviceId].history.push({ noiseLevel, soundType: classifiedSoundType, timestamp: dataToSend.timestamp });
+          // keep only last 30 samples
+          if (devices[deviceId].history.length > 30) devices[deviceId].history.splice(0, devices[deviceId].history.length - 30);
+
           if (mainWindow) mainWindow.webContents.send('device-data', dataToSend);
 
           // If noise above threshold -> alert
@@ -273,7 +291,19 @@ function checkForMismatch(triggeringDeviceId) {
   }
 }
 
-// allow renderer to query current devices
+// allow renderer to query current devices (return a sanitized, serializable snapshot)
 ipcMain.handle('query-devices', () => {
-  return { devices, NOISE_THRESHOLD };
+  const safeDevices = {};
+  for (const [id, d] of Object.entries(devices)) {
+    safeDevices[id] = {
+      lastSeen: d.lastSeen,
+      tableId: d.tableId,
+      lastNoise: d.lastNoise,
+      lastSoundType: d.lastSoundType,
+      classification: d.classification,
+      // include recent history (serializable)
+      history: (d.history || []).map(h => ({ noiseLevel: h.noiseLevel, soundType: h.soundType, timestamp: h.timestamp }))
+    };
+  }
+  return { devices: safeDevices, NOISE_THRESHOLD };
 });

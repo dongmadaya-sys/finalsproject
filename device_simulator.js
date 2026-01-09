@@ -5,8 +5,9 @@ const WebSocket = require('ws');
 const args = process.argv.slice(2);
 const deviceId = args[0] || 'dev1';
 const tableId = args[1] || 'Table-A';
-// optional third argument: full ws url, or use WS_URL env var, else default to localhost:8080
-const url = args[2] || process.env.WS_URL || 'ws://localhost:8080';
+// Try to auto-detect server port from main app logs, fallback to 8080, or use explicit URL/env var
+const serverPort = process.env.WS_PORT || '8080';
+const url = args[2] || process.env.WS_URL || `ws://localhost:${serverPort}`;
 
 console.log(`Attempting to connect to ${url} as device ${deviceId}...`);
 

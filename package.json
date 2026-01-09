@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "node start_all.js",
+    "dev": "electron .",
     "sim": "node device_simulator.js",
     "sim:multi": "node multi_device_simulator.js"
   },
@@ -12,7 +13,8 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^39.2.5"
+    "electron": "^39.2.5",
+    "electron-reload": "^1.5.0"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",

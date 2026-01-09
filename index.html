@@ -37,38 +37,69 @@
           <div class="status-line"><strong>WS Server:</strong> <span id="ws-url" class="mono">ws://localhost:8080</span></div>
           <div class="status-line"><strong>Network:</strong> <span id="net-status" class="status-pill">Checking...</span></div>
           <div class="status-line"><strong>Noise threshold:</strong> <span id="threshold">--</span> dB</div>
+          <div class="status-line"><strong>Last update:</strong> <span id="last-update">--:--:--</span></div>
           <button id="logout-btn" class="logout-btn">Logout</button>
         </div>
       </header>
 
       <main>
         <aside id="devices-panel">
+          <nav class="sidebar-nav">
+            <ul>
+              <li class="nav-item active">Devices</li>
+              <li class="nav-item">Alerts</li>
+              <li class="nav-item">Reports</li>
+            </ul>
+          </nav>
           <h2>Devices</h2>
-          <div id="devices-list" class="devices-grid"></div>
+          <div id="devices-section">
+            <div id="devices-list" class="devices-grid"></div>
+          </div>
+
+          <div id="sidebar-alerts" class="sidebar-alerts chart-card hidden">
+            <div class="alerts-header"><h3>Alerts</h3>
+              <div class="alerts-actions"><button id="clear-alerts" class="small-btn">Clear</button></div>
+            </div>
+            <ul id="alerts-list"></ul>
+          </div>
         </aside>
 
         <section id="charts-panel">
           <div class="chart-top">
-            <h2>Live Noise Chart</h2>
-            <div class="chart-controls">
-              <button id="clear-alerts">Clear Alerts</button>
+            <div class="tabs">
+              <button class="tab active" data-tab="dashboard">Dashboard</button>
             </div>
+            <h2 class="panel-title">Noise Dashboard</h2>
+
           </div>
-          <div class="chart-wrap">
-            <div class="chart-card">
-              <canvas id="noiseChart" height="240"></canvas>
+
+          <div class="dashboard-gauges">
+            <div class="gauge-card">
+              <h3>Average</h3>
+              <canvas id="avgGauge" width="120" height="120"></canvas>
+              <div class="gauge-value"><span id="avgValue">--</span> dB</div>
+            </div>
+            <div class="gauge-card">
+              <h3>Peak</h3>
+              <canvas id="peakGauge" width="120" height="120"></canvas>
+              <div class="gauge-value"><span id="peakValue">--</span> dB</div>
             </div>
           </div>
 
-          <div id="alerts" class="alerts-box collapsed" aria-live="polite">
-            <div class="alerts-header">
-              <h3>Alerts</h3>
-              <div class="alerts-actions">
-                <button id="toggle-alerts" class="small-btn" aria-expanded="false" aria-controls="alerts-list">▾</button>
+          <div class="chart-wrap">
+            <div id="dashboard-view" class="dashboard-view">
+              <div class="chart-card">
+                <h3>Daily Trend</h3>
+                <canvas id="dailyChart" height="200"></canvas>
+              </div>
+              <div class="chart-card">
+                <h3>Monthly Overview</h3>
+                <canvas id="monthlyChart" height="200"></canvas>
               </div>
             </div>
-            <ul id="alerts-list"></ul>
-          </div>
+          </div> 
+
+
         </section>
       </main>
       <footer>
@@ -76,7 +107,6 @@
       </footer>
     </div>
 
-    <div id="toast" class="toast" aria-live="polite"></div>
     <script src="renderer.js"></script>
   </body>
 </html>
