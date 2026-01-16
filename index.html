@@ -107,6 +107,31 @@
       </footer>
     </div>
 
+    <!-- Alert Notification Modal -->
+    <div id="alert-overlay" class="alert-overlay" style="display:none;"></div>
+    <div id="alert-modal" class="alert-modal" style="display:none;">
+      <div class="alert-modal-content">
+        <div class="alert-header">
+          <div class="alert-icon-container">
+            <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <h2 id="alert-title" class="alert-title">Alert</h2>
+          <button id="alert-close-btn" class="alert-close-btn">&times;</button>
+        </div>
+        <div class="alert-body">
+          <p id="alert-message" class="alert-message">Alert message goes here</p>
+        </div>
+        <div class="alert-footer">
+          <button id="alert-ok-btn" class="alert-btn-primary">OK</button>
+          <button id="alert-dismiss-btn" class="alert-btn-secondary">Dismiss</button>
+        </div>
+      </div>
+    </div>
+
     <script src="renderer.js"></script>
   </body>
 </html>

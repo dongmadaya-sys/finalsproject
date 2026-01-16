@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Quick Alert Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔊 Noise Alert System - Quick Test</h1>
+    
+    <p>Click the button below to test the noise alert:</p>
+    
+    <button onclick="testNoiseAlert()">🔊 Show Noise Alert (Your Requirement)</button>
+    
+    <!-- Alert Modal from your implementation -->
+    <div id="alert-overlay" style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 999; animation: fadeIn 0.3s ease-in-out;"></div>
+    <div id="alert-modal" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; animation: slideIn 0.3s ease-out;">
+        <div style="background: linear-gradient(135deg, #ffffff 0%, #fbfdff 100%); border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.2); min-width: 420px; max-width: 520px; overflow: hidden; border: 2px solid #e0e7ff;">
+            <div style="display: flex; align-items: center; gap: 16px; padding: 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; position: relative;">
+                <div style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; flex-shrink: 0;">
+                    <svg style="width: 28px; height: 28px; color: #fff;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </div>
+                <h2 id="alert-title" style="margin: 0; font-size: 20px; font-weight: 700; color: white; flex: 1;">Alert</h2>
+                <button id="alert-close-btn" style="background: none; border: none; color: white; font-size: 28px; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s; opacity: 0.8;">&times;</button>
+            </div>
+            <div style="padding: 24px; background: white;">
+                <p id="alert-message" style="margin: 0; font-size: 15px; line-height: 1.6; color: #374151; word-wrap: break-word; white-space: pre-wrap;">Alert message goes here</p>
+            </div>
+            <div style="display: flex; gap: 12px; padding: 20px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; justify-content: flex-end;">
+                <button id="alert-ok-btn" style="padding: 10px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 14px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">OK</button>
+                <button id="alert-dismiss-btn" style="padding: 10px 24px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 14px; transition: all 0.2s;">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from {
+                transform: translate(-50%, -60%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+    </style>
+
+    <script>
+        // Alert functions from your implementation
+        function showAlert(title, message, options = {}) {
+            const {
+                onOk = () => closeAlert(),
+                onDismiss = () => closeAlert(),
+                autoClose = false,
+                autoCloseDelay = 5000
+            } = options;
+
+            const overlay = document.getElementById('alert-overlay');
+            const modal = document.getElementById('alert-modal');
+            const titleEl = document.getElementById('alert-title');
+            const messageEl = document.getElementById('alert-message');
+            const okBtn = document.getElementById('alert-ok-btn');
+            const dismissBtn = document.getElementById('alert-dismiss-btn');
+            const closeBtn = document.getElementById('alert-close-btn');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            okBtn.onclick = onOk;
+            dismissBtn.onclick = onDismiss;
+            closeBtn.onclick = () => closeAlert();
+
+            overlay.style.display = 'flex';
+            modal.style.display = 'block';
+
+            if (autoClose) {
+                setTimeout(() => {
+                    if (modal.style.display !== 'none') {
+                        closeAlert();
+                    }
+                }, autoCloseDelay);
+            }
+        }
+
+        function closeAlert() {
+            const overlay = document.getElementById('alert-overlay');
+            const modal = document.getElementById('alert-modal');
+            overlay.style.display = 'none';
+            modal.style.display = 'none';
+        }
+
+        // The noise alert from your requirements
+        function showNoiseAlert() {
+            showAlert(
+                '⚠️ High Noise Level Detected',
+                'High Noise level detected in this area.\n\nKindly lower your voice to respect others'
+            );
+        }
+
+        function testNoiseAlert() {
+            showNoiseAlert();
+        }
+    </script>
+</body>
+</html>

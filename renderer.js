@@ -485,8 +485,89 @@ function hexToRgba(hex, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+// Alert Notification System
+function showAlert(title, message, options = {}) {
+  const {
+    onOk = () => closeAlert(),
+    onDismiss = () => closeAlert(),
+    autoClose = false,
+    autoCloseDelay = 5000
+  } = options;
+
+  const overlay = document.getElementById('alert-overlay');
+  const modal = document.getElementById('alert-modal');
+  const titleEl = document.getElementById('alert-title');
+  const messageEl = document.getElementById('alert-message');
+  const okBtn = document.getElementById('alert-ok-btn');
+  const dismissBtn = document.getElementById('alert-dismiss-btn');
+  const closeBtn = document.getElementById('alert-close-btn');
+
+  // Set content
+  titleEl.textContent = title;
+  messageEl.textContent = message;
+
+  // Setup button handlers
+  okBtn.onclick = onOk;
+  dismissBtn.onclick = onDismiss;
+  closeBtn.onclick = () => closeAlert();
+
+  // Show modal
+  overlay.style.display = 'flex';
+  modal.style.display = 'block';
+
+  // Auto-close if enabled
+  if (autoClose) {
+    setTimeout(() => {
+      if (modal.style.display !== 'none') {
+        closeAlert();
+      }
+    }, autoCloseDelay);
+  }
+
+  return modal;
+}
+
+function closeAlert() {
+  const overlay = document.getElementById('alert-overlay');
+  const modal = document.getElementById('alert-modal');
+  overlay.style.display = 'none';
+  modal.style.display = 'none';
+}
+
+// Test function - demonstrates a high noise level alert (the sample from requirements)
+function showNoiseAlert() {
+  showAlert(
+    '⚠️ High Noise Level Detected',
+    'High Noise level detected in this area.\n\nKindly lower your voice to respect others',
+    {
+      onOk: () => {
+        console.log('User acknowledged noise alert');
+        closeAlert();
+      },
+      onDismiss: () => {
+        console.log('User dismissed noise alert');
+        closeAlert();
+      }
+    }
+  );
+}
+
 // Check login session and register network listener early (so it shows on login screen)
 window.addEventListener('DOMContentLoaded', () => {
   if (window.api && window.api.onNetworkStatus) window.api.onNetworkStatus(updateNetworkStatus);
+  
+  // Listen for startup alert from main process
+  if (window.api && window.api.onStartupAlert) {
+    window.api.onStartupAlert((data) => {
+      const { title, message } = data;
+      showAlert(title, message, {
+        autoClose: true,
+        autoCloseDelay: 4000,
+        onOk: () => closeAlert(),
+        onDismiss: () => closeAlert()
+      });
+    });
+  }
+  
   checkSession();
 });

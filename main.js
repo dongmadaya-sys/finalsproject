@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const WebSocket = require('ws');
 const net = require('net');
@@ -21,15 +21,59 @@ try {
 app.disableHardwareAcceleration();
 
 let mainWindow;
+let alertWindow;
 let PORT = 8080;
 let wss;
 let soundClassifier;
 const devices = {};
 const NOISE_THRESHOLD = 65;
 const INACTIVITY_MS = 15_000;
+const ALERT_THROTTLE_MS = 60000; // 1 minute between alerts per device
+const lastAlertTime = {}; // Track last alert time per device
+
+function createAlertWindow() {
+  if (alertWindow) {
+    alertWindow.focus();
+    return alertWindow;
+  }
+  
+  // Get all displays
+  const displays = screen.getAllDisplays();
+  const alertDisplay = displays.length > 1 ? displays[1] : displays[0];
+  
+  alertWindow = new BrowserWindow({
+    x: alertDisplay.bounds.x,
+    y: alertDisplay.bounds.y,
+    width: alertDisplay.bounds.width,
+    height: alertDisplay.bounds.height,
+    fullscreen: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true
+    },
+    alwaysOnTop: true,
+    frame: false,
+    hasShadow: true
+  });
+  
+  alertWindow.loadFile('alert_demo.html');
+  alertWindow.removeMenu();
+  
+  alertWindow.on('closed', () => {
+    alertWindow = null;
+  });
+  
+  return alertWindow;
+}
 
 function createWindow() {
+  // Get primary display
+  const primaryDisplay = screen.getPrimaryDisplay();
+  
   mainWindow = new BrowserWindow({
+    x: primaryDisplay.bounds.x,
+    y: primaryDisplay.bounds.y,
     width: 1200,
     height: 800,
     show: false, // Don't show the window initially
@@ -50,12 +94,24 @@ function createWindow() {
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('✓ Window loaded, sending server info on port', PORT);
     mainWindow.webContents.send('server-info', { port: PORT, NOISE_THRESHOLD });
-    // Optionally show the window
+    
+    // Show the main window
     try {
       mainWindow.show();
     } catch (e) {
       console.log('✓ Could not show window (headless), server still running');
     }
+    
+    // Create and show alert notification window
+    setTimeout(() => {
+      const alertWin = createAlertWindow();
+      alertWin.show();
+      alertWin.webContents.send('show-alert', {
+        title: '⚠️ Smart Noise Monitor Started',
+        message: 'The noise detection system is now active.\n\nMonitoring noise levels in this area.\n\nKindly maintain appropriate noise levels to respect others.'
+      });
+      console.log('✓ Startup alert window shown');
+    }, 800);
   });
   
   mainWindow.webContents.on('did-fail-load', (err) => {
@@ -219,17 +275,36 @@ async function startWebSocketServer() {
 
           if (mainWindow) mainWindow.webContents.send('device-data', dataToSend);
 
-          // If noise above threshold -> alert
+          // If noise above threshold -> alert (with throttling)
           if (noiseLevel >= NOISE_THRESHOLD) {
-            const alert = {
-              type: 'noise_exceed',
-              deviceId,
-              tableId: devices[deviceId].tableId,
-              noiseLevel,
-              soundType: classifiedSoundType,
-              timestamp: timestamp || Date.now()
-            };
-            if (mainWindow) mainWindow.webContents.send('alert', alert);
+            const now = Date.now();
+            const lastAlert = lastAlertTime[deviceId] || 0;
+            const timeSinceLastAlert = now - lastAlert;
+            
+            // Only show alert if more than ALERT_THROTTLE_MS has passed
+            if (timeSinceLastAlert >= ALERT_THROTTLE_MS) {
+              lastAlertTime[deviceId] = now;
+              
+              const alert = {
+                type: 'noise_exceed',
+                deviceId,
+                tableId: devices[deviceId].tableId,
+                noiseLevel,
+                soundType: classifiedSoundType,
+                timestamp: timestamp || Date.now()
+              };
+              if (mainWindow) mainWindow.webContents.send('alert', alert);
+              
+              // Show alert in notification window
+              const alertWin = createAlertWindow();
+              if (alertWin) {
+                alertWin.show();
+                alertWin.webContents.send('show-alert', {
+                  title: '⚠️ Noise Detected',
+                  message: `Noise detected at ${noiseLevel} dB.\n\nPlease be quiet.`
+                });
+              }
+            }
           }
 
           checkForMismatch(deviceId);
@@ -288,6 +363,16 @@ function checkForMismatch(triggeringDeviceId) {
       peers: otherDevices.map(([id, d]) => ({ deviceId: id, noise: d.lastNoise || 0 }))
     };
     if (mainWindow) mainWindow.webContents.send('alert', alert);
+    
+    // Show alert in notification window
+    const alertWin = createAlertWindow();
+    if (alertWin) {
+      alertWin.show();
+      alertWin.webContents.send('show-alert', {
+        title: '⚠️ Possible Sensor Issue',
+        message: `Device ${triggeringDeviceId} reports high noise (${triggeredNoise} dB) but peers are quiet.\n\nPlease check the device.`
+      });
+    }
   }
 }
 

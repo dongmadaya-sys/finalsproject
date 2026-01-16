@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Alert Notification Demo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .demo-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #1f2937;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .demo-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        /* Alert Modal Styles */
+        .alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .alert-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translate(-50%, -60%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        .alert-modal-content {
+            background: linear-gradient(135deg, #ffffff 0%, #fbfdff 100%);
+            border-radius: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.2);
+            min-width: 70vw;
+            max-width: 90vw;
+            min-height: 40vh;
+            overflow: hidden;
+            border: 2px solid #e0e7ff;
+        }
+
+        .alert-header {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            position: relative;
+        }
+
+        .alert-icon-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            flex-shrink: 0;
+        }
+
+        .alert-icon {
+            width: 60px;
+            height: 60px;
+            color: #fff;
+        }
+
+        .alert-title {
+            margin: 0;
+            font-size: 48px;
+            font-weight: 700;
+            color: white;
+            flex: 1;
+        }
+
+        .alert-close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s;
+            opacity: 0.8;
+        }
+
+        .alert-close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            opacity: 1;
+            transform: rotate(90deg);
+        }
+
+        .alert-body {
+            padding: 60px;
+            background: white;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .alert-message {
+            margin: 0;
+            font-size: 42px;
+            font-weight: 600;
+            line-height: 1.9;
+            color: #1f2937;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            text-align: center;
+        }
+
+        .alert-footer {
+            display: flex;
+            gap: 12px;
+            padding: 20px 24px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            justify-content: flex-end;
+        }
+
+        .alert-btn-primary {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .alert-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .alert-btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .alert-btn-secondary {
+            padding: 10px 24px;
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .alert-btn-secondary:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+
+        .alert-btn-secondary:active {
+            background: #d1d5db;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 600px) {
+            .alert-modal-content {
+                min-width: auto;
+                width: 90vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Alert Notification Modal -->
+    <div id="alert-overlay" class="alert-overlay" style="display:none;"></div>
+    <div id="alert-modal" class="alert-modal" style="display:none;">
+        <div class="alert-modal-content">
+            <div class="alert-header">
+                <div class="alert-icon-container">
+                    <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </div>
+                <h2 id="alert-title" class="alert-title">Alert</h2>
+            </div>
+            <div class="alert-body">
+                <p id="alert-message" class="alert-message">Alert message goes here</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Alert Notification System
+        function showAlert(title, message, options = {}) {
+            const {
+                autoClose = false,
+                autoCloseDelay = 5000
+            } = options;
+
+            const overlay = document.getElementById('alert-overlay');
+            const modal = document.getElementById('alert-modal');
+            const titleEl = document.getElementById('alert-title');
+            const messageEl = document.getElementById('alert-message');
+
+            // Set content
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            // Show modal
+            overlay.style.display = 'flex';
+            modal.style.display = 'block';
+
+            // Auto-close if enabled
+            if (autoClose) {
+                setTimeout(() => {
+                    if (modal.style.display !== 'none') {
+                        closeAlert();
+                    }
+                }, autoCloseDelay);
+            }
+
+            return modal;
+        }
+
+        function closeAlert() {
+            const overlay = document.getElementById('alert-overlay');
+            const modal = document.getElementById('alert-modal');
+            overlay.style.display = 'none';
+            modal.style.display = 'none';
+        }
+
+        // Listen for alerts from main process
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.api && window.api.onShowAlert) {
+                window.api.onShowAlert((data) => {
+                    const { title, message } = data;
+                    showAlert(title, message, {
+                        autoClose: true,
+                        autoCloseDelay: 4000
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
