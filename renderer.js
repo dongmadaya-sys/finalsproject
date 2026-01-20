@@ -149,7 +149,7 @@ function initChart() {
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
           scales: { x: { ticks: { color: '#94a3b8' } }, y: { min: 0, max: 120, ticks: { color: '#94a3b8' } } },
-          plugins: { legend: { position: 'top', labels: { color: '#0f172a' } } }
+          plugins: { legend: { position: 'top', labels: { color: '#f1f5f9' } } }
         }
       });
     }
@@ -159,7 +159,7 @@ function initChart() {
       monthlyChart = new Chart(monthlyCtx, {
         type: 'line',
         data: { labels: [], datasets: [ { label: 'Avg (day)', data: [], borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.08)', fill:true }, { label: 'Peak (day)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.06)', fill:false } ] },
-        options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ min:0, max:120, ticks:{ color:'#94a3b8' } }, x:{ ticks:{ color:'#94a3b8' } } }, plugins:{ legend:{ labels:{ color:'#cfe6ff' } } } }
+        options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ min:0, max:120, ticks:{ color:'#94a3b8' } }, x:{ ticks:{ color:'#94a3b8' } } }, plugins:{ legend:{ labels:{ color:'#f1f5f9' } } } }
       });
     }
   } catch (e) { console.debug('history chart init failed', e); }

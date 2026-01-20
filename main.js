@@ -41,12 +41,17 @@ function createAlertWindow() {
   const displays = screen.getAllDisplays();
   const alertDisplay = displays.length > 1 ? displays[1] : displays[0];
   
+  // Set window size to 80% of display size, centered
+  const windowWidth = Math.floor(alertDisplay.bounds.width * 0.8);
+  const windowHeight = Math.floor(alertDisplay.bounds.height * 0.8);
+  const windowX = alertDisplay.bounds.x + (alertDisplay.bounds.width - windowWidth) / 2;
+  const windowY = alertDisplay.bounds.y + (alertDisplay.bounds.height - windowHeight) / 2;
+  
   alertWindow = new BrowserWindow({
-    x: alertDisplay.bounds.x,
-    y: alertDisplay.bounds.y,
-    width: alertDisplay.bounds.width,
-    height: alertDisplay.bounds.height,
-    fullscreen: true,
+    x: windowX,
+    y: windowY,
+    width: windowWidth,
+    height: windowHeight,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

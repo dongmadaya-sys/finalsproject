@@ -6,6 +6,30 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
+        :root {
+            /* --- Core Palette --- */
+            --bg-dark: #0f172a;       /* Deep Midnight Blue */
+            --bg-darker: #020617;     /* Almost Black */
+            
+            /* --- Glassmorphism Variables --- */
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            --glass-blur: blur(12px);
+            
+            /* --- Typography --- */
+            --text-primary: #f1f5f9;  /* Bright White/Grey */
+            --text-secondary: #94a3b8; /* Muted Blue/Grey */
+            
+            /* --- Status Indicators (Neon Glow) --- */
+            --status-safe: #22d3ee;    /* Cyan Glow */
+            --status-warning: #fbbf24; /* Amber Glow */
+            --status-critical: #f43f5e; /* Rose Glow */
+            
+            /* --- Gradients --- */
+            --grad-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,31 +38,38 @@
 
         body {
             font-family: 'Inter', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(34, 211, 238, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(118, 75, 162, 0.05), transparent 25%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            color: var(--text-primary);
         }
 
         .demo-container {
-            background: white;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: var(--glass-border);
             border-radius: 16px;
             padding: 40px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: var(--glass-shadow);
             max-width: 500px;
             width: 100%;
         }
 
         h1 {
-            color: #1f2937;
+            color: var(--text-primary);
             margin-bottom: 10px;
             font-size: 28px;
         }
 
         .subtitle {
-            color: #6b7280;
+            color: var(--text-secondary);
             margin-bottom: 30px;
             font-size: 14px;
         }
@@ -56,11 +87,11 @@
             font-weight: 600;
             cursor: pointer;
             font-size: 15px;
-            transition: all 0.2s;
+            transition: all 0.3s;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--grad-primary);
             color: white;
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
@@ -75,13 +106,14 @@
         }
 
         .btn-secondary {
-            background: #f3f4f6;
-            color: #374151;
-            border: 1px solid #d1d5db;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .btn-secondary:hover {
-            background: #e5e7eb;
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
         /* Alert Modal Styles */
@@ -91,12 +123,13 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 999;
             animation: fadeIn 0.3s ease-in-out;
+            backdrop-filter: blur(4px);
         }
 
         .alert-modal {
@@ -125,14 +158,16 @@
         }
 
         .alert-modal-content {
-            background: linear-gradient(135deg, #ffffff 0%, #fbfdff 100%);
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
             border-radius: 40px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.2);
+            box-shadow: var(--glass-shadow), 0 0 40px rgba(34, 211, 238, 0.1);
             min-width: 70vw;
             max-width: 90vw;
             min-height: 40vh;
             overflow: hidden;
-            border: 2px solid #e0e7ff;
+            border: 1px solid rgba(34, 211, 238, 0.2);
         }
 
         .alert-header {
@@ -140,7 +175,7 @@
             align-items: center;
             gap: 32px;
             padding: 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--grad-primary);
             color: white;
             position: relative;
         }
@@ -183,7 +218,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 8px;
-            transition: all 0.2s;
+            transition: all 0.3s;
             opacity: 0.8;
         }
 
@@ -195,11 +230,12 @@
 
         .alert-body {
             padding: 60px;
-            background: white;
+            background: rgba(255, 255, 255, 0.02);
             min-height: 300px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .alert-message {
@@ -207,7 +243,7 @@
             font-size: 42px;
             font-weight: 600;
             line-height: 1.9;
-            color: #1f2937;
+            color: var(--text-primary);
             word-wrap: break-word;
             white-space: pre-wrap;
             text-align: center;
@@ -217,21 +253,21 @@
             display: flex;
             gap: 12px;
             padding: 20px 24px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
+            background: transparent;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
             justify-content: flex-end;
         }
 
         .alert-btn-primary {
             padding: 10px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--grad-primary);
             color: white;
             border: none;
             border-radius: 10px;
             font-weight: 600;
             cursor: pointer;
             font-size: 14px;
-            transition: all 0.2s;
+            transition: all 0.3s;
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
@@ -246,23 +282,24 @@
 
         .alert-btn-secondary {
             padding: 10px 24px;
-            background: #f3f4f6;
-            color: #374151;
-            border: 1px solid #d1d5db;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             font-weight: 600;
             cursor: pointer;
             font-size: 14px;
-            transition: all 0.2s;
+            transition: all 0.3s;
         }
 
         .alert-btn-secondary:hover {
-            background: #e5e7eb;
-            border-color: #9ca3af;
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
         }
 
         .alert-btn-secondary:active {
-            background: #d1d5db;
+            background: rgba(255, 255, 255, 0.08);
         }
 
         .hidden {
@@ -297,6 +334,7 @@
             </div>
         </div>
     </div>
+
 
     <script>
         // Alert Notification System
