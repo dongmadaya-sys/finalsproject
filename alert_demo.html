@@ -312,9 +312,13 @@
                 width: 90vw;
             }
         }
+
+
     </style>
 </head>
 <body>
+
+
     <!-- Alert Notification Modal -->
     <div id="alert-overlay" class="alert-overlay" style="display:none;"></div>
     <div id="alert-modal" class="alert-modal" style="display:none;">
@@ -341,7 +345,8 @@
         function showAlert(title, message, options = {}) {
             const {
                 autoClose = false,
-                autoCloseDelay = 5000
+                autoCloseDelay = 5000,
+                timestamp = null
             } = options;
 
             const overlay = document.getElementById('alert-overlay');
@@ -351,7 +356,13 @@
 
             // Set content
             titleEl.textContent = title;
-            messageEl.textContent = message;
+            
+            // Add timestamp if provided
+            if (timestamp) {
+                messageEl.innerHTML = `<strong>${timestamp}</strong><br/>${message}`;
+            } else {
+                messageEl.textContent = message;
+            }
 
             // Show modal
             overlay.style.display = 'flex';
@@ -380,10 +391,11 @@
         window.addEventListener('DOMContentLoaded', () => {
             if (window.api && window.api.onShowAlert) {
                 window.api.onShowAlert((data) => {
-                    const { title, message } = data;
+                    const { title, message, timestamp } = data;
                     showAlert(title, message, {
                         autoClose: true,
-                        autoCloseDelay: 4000
+                        autoCloseDelay: 4000,
+                        timestamp: timestamp
                     });
                 });
             }

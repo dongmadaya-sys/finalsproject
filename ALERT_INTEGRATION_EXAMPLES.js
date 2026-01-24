@@ -13,7 +13,7 @@ function attachDataListeners() {
   if (window.api && window.api.onDeviceData) {
     window.api.onDeviceData((device) => {
       const noiseLevel = device.noiseLevel || 0;
-      const NOISE_THRESHOLD = 65; // dB
+      const NOISE_THRESHOLD = 55; // dB - Alert triggers at 55dB and above. Below 54dB will NOT trigger alerts.
       
       // Check if noise level exceeds threshold
       if (noiseLevel > NOISE_THRESHOLD) {
@@ -141,8 +141,8 @@ function testNoiseAlert() {
 // ============================================================
 
 function processDeviceUpdate(device) {
-  const NOISE_THRESHOLD = 65;  // dB
-  const CRITICAL_THRESHOLD = 80;  // dB
+  const NOISE_THRESHOLD = 55;  // dB - Alert triggers at 55dB and above. Below 54dB will NOT trigger alerts.
+  const CRITICAL_THRESHOLD = 75;  // dB - Critical alert at 75dB and above
   
   // Update device UI
   updateDeviceDisplay(device);

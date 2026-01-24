@@ -12,7 +12,7 @@
     <div id="login-screen" class="login-screen">
       <div class="login-container">
         <h1>Smart Noise Monitor</h1>
-        <form id="login-form" onsubmit="handleLogin(event)">
+        <form id="login-form" onsubmit="handleLogin(event); return false;">
           <div class="form-group">
             <label for="username">Username:</label>
             <input type="text" id="username" name="username" required autofocus>
@@ -21,9 +21,10 @@
             <label for="password">Password:</label>
             <input type="password" id="password" name="password" required>
           </div>
-          <button type="submit" class="login-btn">Login</button>
+          <button type="submit" class="login-btn" onclick="handleLogin(event); return false;">Login</button>
         </form>
         <div id="login-error" class="login-error" style="display:none;"></div>
+        <div id="init-error" class="login-error" style="display:none;"></div>
       </div>
     </div>
 
@@ -43,6 +44,7 @@
       </header>
 
       <main>
+
         <aside id="devices-panel">
           <nav class="sidebar-nav">
             <ul>
@@ -66,38 +68,55 @@
 
         <section id="charts-panel">
           <div class="chart-top">
-            <div class="tabs">
-              <button class="tab active" data-tab="dashboard">Dashboard</button>
+            <div class="tabs" id="device-tabs">
+              <!-- Device tabs will be added here dynamically -->
             </div>
-            <h2 class="panel-title">Noise Dashboard</h2>
+            <h2 class="panel-title" id="dashboard-title">Noise Dashboard</h2>
 
           </div>
 
-          <div class="dashboard-gauges">
-            <div class="gauge-card">
-              <h3>Average</h3>
-              <canvas id="avgGauge" width="120" height="120"></canvas>
-              <div class="gauge-value"><span id="avgValue">--</span> dB</div>
-            </div>
-            <div class="gauge-card">
-              <h3>Peak</h3>
-              <canvas id="peakGauge" width="120" height="120"></canvas>
-              <div class="gauge-value"><span id="peakValue">--</span> dB</div>
+          <div class="dashboard-top-section">
+            <div class="chart-card noise-summary-card">
+              <h3 class="summary-title">Noise Summary</h3>
+              <div class="noise-summary-grid">
+                <div class="gauge-card">
+                  <h4>Average</h4>
+                  <canvas id="avgGauge" width="200" height="200"></canvas>
+                </div>
+                <div class="gauge-card">
+                  <h4>Peak</h4>
+                  <canvas id="peakGauge" width="200" height="200"></canvas>
+                </div>
+              </div>
             </div>
           </div>
 
           <div class="chart-wrap">
             <div id="dashboard-view" class="dashboard-view">
-              <div class="chart-card">
-                <h3>Daily Trend</h3>
-                <canvas id="dailyChart" height="200"></canvas>
+              <div class="live-noise-wrapper">
+                <div class="chart-card live-noise-card">
+                  <div class="live-noise-header">
+                    <h3>Live Noise</h3>
+                    <span id="live-timestamp" class="live-timestamp">--:--:--</span>
+                  </div>
+                  <canvas id="noiseChart" height="200"></canvas>
+                </div>
               </div>
-              <div class="chart-card">
-                <h3>Monthly Overview</h3>
-                <canvas id="monthlyChart" height="200"></canvas>
+
+              <div class="chart-card daily-monthly-container">
+                <div class="daily-monthly-grid">
+                  <div class="chart-subcard">
+                    <h3>Daily Trend</h3>
+                    <canvas id="dailyChart" height="180"></canvas>
+                  </div>
+                  <div class="chart-subcard">
+                    <h3>Monthly Overview</h3>
+                    <canvas id="monthlyChart" height="180"></canvas>
+                  </div>
+                </div>
               </div>
             </div>
-          </div> 
+          </div>
 
 
         </section>
