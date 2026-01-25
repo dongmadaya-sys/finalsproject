@@ -5,6 +5,8 @@ const net = require('net');
 const dns = require('dns');
 const os = require('os');
 const { exec, execSync } = require('child_process');
+const fs = require('fs');
+const initSqlJs = require('sql.js');
 const SoundClassifier = require('./sound_classifier');
 const ArduinoWiFiHandler = require('./arduino_wifi_handler');
 
@@ -17,6 +19,136 @@ try {
   console.log('✓ electron-reload enabled');
 } catch (e) {
   // ignore if not available
+}
+
+// ==================== SQLite Database Setup (using sql.js) ====================
+let db = null;
+let SQL = null;
+let dbFilePath = null;
+
+async function initializeDatabase() {
+  try {
+    // Initialize sql.js
+    SQL = await initSqlJs();
+    dbFilePath = path.join(app.getPath('userData'), 'reports.db');
+    
+    // Try to load existing database
+    let fileBuffer = null;
+    if (fs.existsSync(dbFilePath)) {
+      fileBuffer = fs.readFileSync(dbFilePath);
+    }
+    
+    // Create or load database
+    if (fileBuffer) {
+      db = new SQL.Database(new Uint8Array(fileBuffer));
+      console.log(`✓ Database loaded from: ${dbFilePath}`);
+    } else {
+      db = new SQL.Database();
+      console.log(`✓ New database created`);
+    }
+    
+    // Migrate existing tables to add device_section column if needed
+    migrateDatabase();
+    
+    // Create tables if they don't exist
+    const sqlStatements = [
+      `CREATE TABLE IF NOT EXISTS noise_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT NOT NULL,
+        device_name TEXT,
+        device_section TEXT,
+        timestamp INTEGER NOT NULL,
+        average_level REAL,
+        peak_level REAL,
+        sound_type TEXT,
+        duration_minutes INTEGER,
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS alerts_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT NOT NULL,
+        device_name TEXT,
+        alert_type TEXT,
+        level REAL,
+        timestamp INTEGER NOT NULL,
+        resolved INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS daily_summaries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT NOT NULL,
+        device_name TEXT,
+        date TEXT UNIQUE,
+        avg_noise REAL,
+        peak_noise REAL,
+        total_alerts INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_noise_reports_device ON noise_reports(device_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_noise_reports_timestamp ON noise_reports(timestamp)`,
+      `CREATE INDEX IF NOT EXISTS idx_alerts_log_device ON alerts_log(device_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_alerts_log_timestamp ON alerts_log(timestamp)`,
+      `CREATE INDEX IF NOT EXISTS idx_daily_summaries_device ON daily_summaries(device_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_daily_summaries_date ON daily_summaries(date)`
+    ];
+    
+    sqlStatements.forEach(sql => {
+      try {
+        db.run(sql);
+      } catch (e) {
+        // Table might already exist
+        if (!e.message.includes('already exists')) {
+          console.warn('Warning executing SQL:', e.message);
+        }
+      }
+    });
+    
+    // Save database to file
+    saveDatabase();
+    
+    console.log('✓ Database tables created/verified');
+    return true;
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error.message);
+    return false;
+  }
+}
+
+function migrateDatabase() {
+  try {
+    // Check if device_section column exists in noise_reports table
+    const result = db.exec(`PRAGMA table_info(noise_reports)`);
+    if (result.length > 0) {
+      const columns = result[0].values.map(row => row[1]); // Get column names
+      
+      if (!columns.includes('device_section')) {
+        console.log('⚠️  Migrating database: adding device_section column...');
+        
+        try {
+          db.run(`ALTER TABLE noise_reports ADD COLUMN device_section TEXT`);
+          console.log('✓ device_section column added to noise_reports');
+          saveDatabase();
+        } catch (e) {
+          console.warn('⚠️  Could not add device_section column (may already exist):', e.message);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️  Database migration check failed:', error.message);
+  }
+}
+
+function saveDatabase() {
+  try {
+    if (db && dbFilePath) {
+      const data = db.export();
+      const buffer = Buffer.from(data);
+      fs.writeFileSync(dbFilePath, buffer);
+    }
+  } catch (error) {
+    console.error('Error saving database:', error.message);
+  }
 }
 
 // ==================== WiFi Functions ====================
@@ -309,6 +441,9 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  console.log('App ready, initializing database...');
+  await initializeDatabase();
+  
   console.log('App ready, starting WebSocket server...');
   await startWebSocketServer();
   console.log('WebSocket server started successfully');
@@ -813,5 +948,301 @@ ipcMain.handle('initialize-arduino', async (event) => {
   } catch (error) {
     console.error('Arduino initialization error:', error.message);
     return { success: false, message: error.message };
+  }
+});
+// ==================== SQLite IPC Handlers ====================
+
+/**
+ * Save a noise report to database
+ */
+ipcMain.handle('save-noise-report', (event, reportData) => {
+  try {
+    if (!db) {
+      return { success: false, error: 'Database not initialized' };
+    }
+    
+    db.run(`
+      INSERT INTO noise_reports (device_id, device_name, device_section, timestamp, average_level, peak_level, sound_type, duration_minutes, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      reportData.device_id,
+      reportData.device_name,
+      reportData.device_section || reportData.device_name,
+      reportData.timestamp,
+      reportData.average_level,
+      reportData.peak_level,
+      reportData.sound_type || null,
+      reportData.duration_minutes || null,
+      reportData.notes || null
+    ]);
+    
+    // Get the last inserted ID
+    const result = db.exec('SELECT last_insert_rowid() as id');
+    const id = result && result.length > 0 && result[0].values.length > 0 ? result[0].values[0][0] : null;
+    
+    saveDatabase();
+    return { success: true, id };
+  } catch (error) {
+    console.error('Error saving noise report:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Log an alert to database
+ */
+ipcMain.handle('log-alert', (event, alertData) => {
+  try {
+    if (!db) {
+      return { success: false, error: 'Database not initialized' };
+    }
+    
+    db.run(`
+      INSERT INTO alerts_log (device_id, device_name, alert_type, level, timestamp)
+      VALUES (?, ?, ?, ?, ?)
+    `, [
+      alertData.device_id,
+      alertData.device_name,
+      alertData.alert_type || 'noise',
+      alertData.level,
+      alertData.timestamp
+    ]);
+    
+    const result = db.exec('SELECT last_insert_rowid() as id');
+    const id = result && result.length > 0 && result[0].values.length > 0 ? result[0].values[0][0] : null;
+    
+    saveDatabase();
+    return { success: true, id };
+  } catch (error) {
+    console.error('Error logging alert:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Get noise reports (with optional filtering)
+ */
+ipcMain.handle('get-noise-reports', (event, options = {}) => {
+  try {
+    if (!db) {
+      return { success: false, error: 'Database not initialized', reports: [] };
+    }
+    
+    let query = 'SELECT * FROM noise_reports WHERE 1=1';
+    const params = [];
+    
+    if (options.device_id) {
+      query += ' AND device_id = ?';
+      params.push(options.device_id);
+    }
+    
+    if (options.startTime) {
+      query += ' AND timestamp >= ?';
+      params.push(options.startTime);
+    }
+    
+    if (options.endTime) {
+      query += ' AND timestamp <= ?';
+      params.push(options.endTime);
+    }
+    
+    query += ' ORDER BY timestamp DESC';
+    
+    if (options.limit) {
+      query += ' LIMIT ?';
+      params.push(options.limit);
+    }
+    
+    const results = db.exec(query, params);
+    const reports = [];
+    
+    if (results.length > 0) {
+      const columns = results[0].columns;
+      const values = results[0].values;
+      values.forEach(row => {
+        const report = {};
+        columns.forEach((col, idx) => {
+          report[col] = row[idx];
+        });
+        reports.push(report);
+      });
+    }
+    
+    return { success: true, reports };
+  } catch (error) {
+    console.error('Error fetching noise reports:', error.message);
+    return { success: false, error: error.message, reports: [] };
+  }
+});
+
+/**
+ * Get alerts log (with optional filtering)
+ */
+ipcMain.handle('get-alerts-log', (event, options = {}) => {
+  try {
+    if (!db) {
+      return { success: false, error: 'Database not initialized', alerts: [] };
+    }
+    
+    let query = 'SELECT * FROM alerts_log WHERE 1=1';
+    const params = [];
+    
+    if (options.device_id) {
+      query += ' AND device_id = ?';
+      params.push(options.device_id);
+    }
+    
+    if (options.startTime) {
+      query += ' AND timestamp >= ?';
+      params.push(options.startTime);
+    }
+    
+    if (options.endTime) {
+      query += ' AND timestamp <= ?';
+      params.push(options.endTime);
+    }
+    
+    if (options.unresolved === true) {
+      query += ' AND resolved = 0';
+    }
+    
+    query += ' ORDER BY timestamp DESC';
+    
+    if (options.limit) {
+      query += ' LIMIT ?';
+      params.push(options.limit);
+    }
+    
+    const results = db.exec(query, params);
+    const alerts = [];
+    
+    if (results.length > 0) {
+      const columns = results[0].columns;
+      const values = results[0].values;
+      values.forEach(row => {
+        const alert = {};
+        columns.forEach((col, idx) => {
+          alert[col] = row[idx];
+        });
+        alerts.push(alert);
+      });
+    }
+    
+    return { success: true, alerts };
+  } catch (error) {
+    console.error('Error fetching alerts log:', error.message);
+    return { success: false, error: error.message, alerts: [] };
+  }
+});
+
+/**
+ * Get daily summaries
+ */
+ipcMain.handle('get-daily-summaries', (event, options = {}) => {
+  try {
+    if (!db) {
+      return { success: false, error: 'Database not initialized', summaries: [] };
+    }
+    
+    let query = 'SELECT * FROM daily_summaries WHERE 1=1';
+    const params = [];
+    
+    if (options.device_id) {
+      query += ' AND device_id = ?';
+      params.push(options.device_id);
+    }
+    
+    if (options.startDate) {
+      query += ' AND date >= ?';
+      params.push(options.startDate);
+    }
+    
+    if (options.endDate) {
+      query += ' AND date <= ?';
+      params.push(options.endDate);
+    }
+    
+    query += ' ORDER BY date DESC';
+    
+    const results = db.exec(query, params);
+    const summaries = [];
+    
+    if (results.length > 0) {
+      const columns = results[0].columns;
+      const values = results[0].values;
+      values.forEach(row => {
+        const summary = {};
+        columns.forEach((col, idx) => {
+          summary[col] = row[idx];
+        });
+        summaries.push(summary);
+      });
+    }
+    
+    return { success: true, summaries };
+  } catch (error) {
+    console.error('Error fetching daily summaries:', error.message);
+    return { success: false, error: error.message, summaries: [] };
+  }
+});
+
+/**
+ * Delete reports (cleanup old data)
+ */
+ipcMain.handle('delete-old-reports', (event, olderThanDays = 30) => {
+  try {
+    if (!db) {
+      return { success: false, error: 'Database not initialized' };
+    }
+    
+    const timestamp = Date.now() - (olderThanDays * 24 * 60 * 60 * 1000);
+    db.run('DELETE FROM noise_reports WHERE timestamp < ?', [timestamp]);
+    
+    saveDatabase();
+    return { success: true, deleted: 1 };
+  } catch (error) {
+    console.error('Error deleting old reports:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Get database statistics
+ */
+ipcMain.handle('get-db-stats', (event) => {
+  try {
+    if (!db) {
+      return { success: false, error: 'Database not initialized' };
+    }
+    
+    const getCount = (table) => {
+      const results = db.exec(`SELECT COUNT(*) as count FROM ${table}`);
+      if (results.length > 0 && results[0].values.length > 0) {
+        return results[0].values[0][0];
+      }
+      return 0;
+    };
+    
+    const getAvg = () => {
+      const results = db.exec('SELECT AVG(average_level) as avg FROM noise_reports');
+      if (results.length > 0 && results[0].values.length > 0) {
+        const avg = results[0].values[0][0];
+        return avg ? parseFloat(avg).toFixed(2) : 0;
+      }
+      return 0;
+    };
+    
+    return {
+      success: true,
+      stats: {
+        totalReports: getCount('noise_reports'),
+        totalAlerts: getCount('alerts_log'),
+        totalSummaries: getCount('daily_summaries'),
+        averageNoiseLevel: getAvg()
+      }
+    };
+  } catch (error) {
+    console.error('Error getting database stats:', error.message);
+    return { success: false, error: error.message };
   }
 });

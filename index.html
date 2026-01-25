@@ -64,6 +64,10 @@
             </div>
             <ul id="alerts-list"></ul>
           </div>
+
+          <div id="sidebar-reports" class="sidebar-reports chart-card hidden">
+            <div class="reports-header"><h3>Reports</h3></div>
+          </div>
         </aside>
 
         <section id="charts-panel">
@@ -118,7 +122,30 @@
             </div>
           </div>
 
-
+          <!-- Reports View -->
+          <div id="reports-view" class="reports-view hidden">
+            <div class="chart-card reports-table-card">
+              <h3 class="reports-title">Noise Reports</h3>
+              <div class="table-wrapper">
+                <table id="reports-table" class="reports-data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Section</th>
+                      <th>Device</th>
+                      <th>Average (dB)</th>
+                      <th>Peak (dB)</th>
+                      <th>Sound Type</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reports-tbody">
+                    <tr><td colspan="7" class="no-data">No reports available</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </section>
       </main>
       <footer>

@@ -12,6 +12,14 @@ try {
     onWiFiConnected: (cb) => ipcRenderer.on('wifi-connected', (e, d) => cb(d)),
     queryDevices: () => ipcRenderer.invoke('query-devices'),
     updateDeviceSection: (deviceId, sectionName) => ipcRenderer.invoke('update-device-section', { deviceId, sectionName }),
+    // Database APIs
+    saveNoiseReport: (reportData) => ipcRenderer.invoke('save-noise-report', reportData),
+    logAlert: (alertData) => ipcRenderer.invoke('log-alert', alertData),
+    getNoiseReports: (options) => ipcRenderer.invoke('get-noise-reports', options),
+    getAlertsLog: (options) => ipcRenderer.invoke('get-alerts-log', options),
+    getDailySummaries: (options) => ipcRenderer.invoke('get-daily-summaries', options),
+    getDbStats: () => ipcRenderer.invoke('get-db-stats'),
+    deleteOldReports: (daysOld) => ipcRenderer.invoke('delete-old-reports', daysOld),
     // WiFi APIs
     scanWiFiNetworks: () => ipcRenderer.invoke('scan-wifi-networks'),
     connectToWiFi: (ssid, password) => ipcRenderer.invoke('connect-to-wifi', { ssid, password }),

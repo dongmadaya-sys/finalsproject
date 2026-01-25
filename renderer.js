@@ -542,19 +542,40 @@ function initChart() {
 
     const devicesSection = document.getElementById('devices-section');
     const sidebarAlerts = document.getElementById('sidebar-alerts');
+    const sidebarReports = document.getElementById('sidebar-reports');
+    const chartTop = document.querySelector('.chart-top');
+    const dashboardTopSection = document.querySelector('.dashboard-top-section');
+    const chartWrap = document.querySelector('.chart-wrap');
+    const reportsView = document.getElementById('reports-view');
 
     if (label === 'Alerts') {
       if (devicesSection) devicesSection.classList.add('hidden');
       if (sidebarAlerts) sidebarAlerts.classList.remove('hidden');
+      if (sidebarReports) sidebarReports.classList.add('hidden');
+      if (chartTop) chartTop.classList.remove('hidden');
+      if (dashboardTopSection) dashboardTopSection.classList.remove('hidden');
+      if (chartWrap) chartWrap.classList.remove('hidden');
+      if (reportsView) reportsView.classList.add('hidden');
       if (sidebarAlerts) sidebarAlerts.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else if (label === 'Devices') {
       if (sidebarAlerts) sidebarAlerts.classList.add('hidden');
+      if (sidebarReports) sidebarReports.classList.add('hidden');
       if (devicesSection) devicesSection.classList.remove('hidden');
+      if (chartTop) chartTop.classList.remove('hidden');
+      if (dashboardTopSection) dashboardTopSection.classList.remove('hidden');
+      if (chartWrap) chartWrap.classList.remove('hidden');
+      if (reportsView) reportsView.classList.add('hidden');
       if (devicesSection) devicesSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-      // Reports or other - hide both for now
-      if (sidebarAlerts) sidebarAlerts.classList.add('hidden');
+    } else if (label === 'Reports') {
       if (devicesSection) devicesSection.classList.add('hidden');
+      if (sidebarAlerts) sidebarAlerts.classList.add('hidden');
+      if (sidebarReports) sidebarReports.classList.remove('hidden');
+      if (chartTop) chartTop.classList.add('hidden');
+      if (dashboardTopSection) dashboardTopSection.classList.add('hidden');
+      if (chartWrap) chartWrap.classList.add('hidden');
+      if (reportsView) reportsView.classList.remove('hidden');
+      if (reportsView) reportsView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      loadReports();
     }
   }));
 
@@ -646,6 +667,9 @@ function attachDataListeners() {
       buffered.forEach(d => handleDeviceData(d));
       console.log('[UI-READY] All buffered data processed');
       
+      // Initialize Reports functionality
+      setupReportsEventListeners();
+      
       // Force an immediate chart update after all data is loaded
       console.log('[UI-READY] Forcing chart update...');
       updateHistoryCharts();
@@ -678,12 +702,77 @@ function handleDeviceData(data) {
   const ts = timestamp || Date.now();
   const timeLabel = new Date(ts).toLocaleTimeString();
 
-  // Update state
-  state.devices[deviceId] = state.devices[deviceId] || { deviceId, tableId, lastSeen: 0, lastNoise: 0, soundType: '' };
+  // Update state - preserve user's selected tableId if already set
+  state.devices[deviceId] = state.devices[deviceId] || { 
+    deviceId, tableId, lastSeen: 0, lastNoise: 0, soundType: '',
+    readings: [],      // Track all readings for average/peak
+    triggeredSounds: [] // Track triggered (non-background) sounds
+  };
   const dev = state.devices[deviceId];
-  dev.lastSeen = ts; dev.lastNoise = noiseLevel; dev.soundType = soundType; dev.tableId = tableId;
+  dev.lastSeen = ts;
+  dev.lastNoise = noiseLevel;
+  dev.soundType = soundType;
+  
+  // Only update tableId from device if user hasn't manually selected one
+  // If the user-selected tableId is empty or default, accept the device's tableId
+  if (!dev.userSelectedSection && (tableId && tableId !== 'Table-A')) {
+    dev.tableId = tableId;
+  }
 
-  upsertDeviceCard(deviceId, tableId, noiseLevel, soundType, ts, true);
+  // Collect readings for statistics
+  if (!dev.readings) dev.readings = [];
+  dev.readings.push(noiseLevel);
+  
+  // Check if sound is triggered (not background)
+  const isTriggeredSound = soundType && soundType !== 'background' && soundType !== '';
+  
+  if (isTriggeredSound) {
+    // IMMEDIATELY save triggered sounds to database
+    if (!dev.triggeredSounds) dev.triggeredSounds = [];
+    dev.triggeredSounds.push(soundType);
+    
+    // Calculate current statistics
+    const average = dev.readings.length > 0 
+      ? dev.readings.reduce((a, b) => a + b, 0) / dev.readings.length 
+      : noiseLevel;
+    const peak = dev.readings.length > 0 
+      ? Math.max(...dev.readings) 
+      : noiseLevel;
+    
+    console.log(`[TRIGGER] ${soundType.toUpperCase()} detected! Saving to database immediately...`);
+    
+    // Save immediately when triggered
+    saveNoiseReportToDb(deviceId, getFriendlyDeviceName(deviceId), average, peak, soundType);
+    
+    // Reset readings after triggered save
+    dev.readings = [];
+    dev.triggeredSounds = [];
+    dev.readingCount = 0;
+  } else {
+    // Non-triggered (background) - accumulate for periodic save
+    if (!dev.readingCount) dev.readingCount = 0;
+    dev.readingCount++;
+    
+    // Still save every 10 readings for background data collection
+    if (dev.readingCount >= 10) {
+      const average = dev.readings.length > 0 
+        ? dev.readings.reduce((a, b) => a + b, 0) / dev.readings.length 
+        : noiseLevel;
+      const peak = dev.readings.length > 0 
+        ? Math.max(...dev.readings) 
+        : noiseLevel;
+      
+      // Save background readings (no triggered sound)
+      saveNoiseReportToDb(deviceId, getFriendlyDeviceName(deviceId), average, peak, null);
+      
+      // Reset accumulators
+      dev.readings = [];
+      dev.triggeredSounds = [];
+      dev.readingCount = 0;
+    }
+  }
+
+  upsertDeviceCard(deviceId, dev.tableId, noiseLevel, soundType, ts, true);
 
   // Update chart dataset (only if live chart exists)
   if (noiseChart) {
@@ -843,6 +932,7 @@ function upsertDeviceCard(deviceId, tableId, noise, soundType, ts, online = true
 function updateDeviceSection(deviceId, sectionName) {
   if (state.devices[deviceId]) {
     state.devices[deviceId].tableId = sectionName;
+    state.devices[deviceId].userSelectedSection = true;  // Mark that user selected a section
     console.log(`[DEVICE] Updated device ${deviceId} section to: ${sectionName}`);
     
     // Send update to main process
@@ -1554,5 +1644,245 @@ if (window.api && window.api.onWiFiConnected) {
     checkSystemStatus();
     checkArduinoStatus();
   });
+}
+
+// ==================== Reports Functions ====================
+
+/**
+ * Load and display reports from database
+ */
+async function loadReports() {
+  try {
+    const now = Date.now();
+    const startTime = now - (30 * 24 * 60 * 60 * 1000); // Last 30 days
+    
+    // Fetch all reports from last 30 days
+    const options = {
+      startTime: startTime,
+      endTime: now,
+      limit: 500
+    };
+    
+    const response = await window.api.getNoiseReports(options);
+    
+    if (response.success) {
+      displayReports(response.reports);
+    } else {
+      console.error('Error loading reports:', response.error);
+      showReportsEmpty();
+    }
+  } catch (error) {
+    console.error('Error in loadReports:', error);
+    showReportsEmpty();
+  }
+}
+
+/**
+ * Display reports in the UI
+ */
+function displayReports(reports) {
+  const tbody = document.getElementById('reports-tbody');
+  if (!tbody) return;
+  
+  if (!reports || reports.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="no-data">No reports available</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = reports.map(report => {
+    const date = new Date(report.timestamp);
+    const dateStr = date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+    const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    
+    return `
+      <tr>
+        <td>${dateStr}</td>
+        <td>${timeStr}</td>
+        <td>${escapeHtml(report.device_section || report.device_name || 'N/A')}</td>
+        <td>${escapeHtml(report.device_name || report.device_id)}</td>
+        <td>${report.average_level?.toFixed(1) || '--'}</td>
+        <td>${report.peak_level?.toFixed(1) || '--'}</td>
+        <td>${report.sound_type ? escapeHtml(report.sound_type) : '--'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+/**
+ * Show empty reports state
+ */
+function showReportsEmpty() {
+  const tbody = document.getElementById('reports-tbody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="6" class="no-data">Error loading reports. Please try again.</td></tr>';
+  }
+}
+
+/**
+ * Update reports statistics
+ */
+async function updateReportsStats(reports) {
+  try {
+    const totalReportsEl = document.getElementById('total-reports');
+    const avgNoiseEl = document.getElementById('avg-noise');
+    const peakNoiseEl = document.getElementById('peak-noise');
+    const totalAlertsEl = document.getElementById('total-alerts');
+    
+    if (reports && reports.length > 0) {
+      if (totalReportsEl) totalReportsEl.textContent = reports.length;
+      
+      const avgLevels = reports.filter(r => r.average_level != null).map(r => r.average_level);
+      if (avgNoiseEl && avgLevels.length > 0) {
+        const avg = avgLevels.reduce((a, b) => a + b, 0) / avgLevels.length;
+        avgNoiseEl.textContent = avg.toFixed(1) + ' dB';
+      }
+      
+      const peakLevels = reports.filter(r => r.peak_level != null).map(r => r.peak_level);
+      if (peakNoiseEl && peakLevels.length > 0) {
+        const peak = Math.max(...peakLevels);
+        peakNoiseEl.textContent = peak.toFixed(1) + ' dB';
+      }
+    }
+    
+    // Fetch alerts count
+    const daysFilter = parseInt(document.getElementById('report-days-filter')?.value || '30');
+    const now = Date.now();
+    const startTime = now - (daysFilter * 24 * 60 * 60 * 1000);
+    
+    const alertsResponse = await window.api.getAlertsLog({
+      startTime: startTime,
+      endTime: now
+    });
+    
+    if (alertsResponse.success && totalAlertsEl) {
+      totalAlertsEl.textContent = alertsResponse.alerts.length;
+    }
+  } catch (error) {
+    console.error('Error updating reports stats:', error);
+  }
+}
+
+/**
+ * Save current noise data to database
+ */
+function saveNoiseReportToDb(deviceId, deviceName, averageLevel, peakLevel, soundType) {
+  try {
+    if (!window.api || !window.api.saveNoiseReport) {
+      console.warn('[DB] window.api.saveNoiseReport not available, cannot save report');
+      return;
+    }
+    
+    // Get the actual device section selected by user
+    const deviceSection = state.devices[deviceId]?.tableId || deviceName;
+    
+    const reportData = {
+      device_id: deviceId,
+      device_name: deviceName,
+      device_section: deviceSection,
+      timestamp: Date.now(),
+      average_level: averageLevel,
+      peak_level: peakLevel,
+      sound_type: soundType || null,
+      notes: `Auto-saved from ${deviceName}`
+    };
+    
+    // Better logging with accurate data
+    console.log('[DB] Saving report:', { 
+      device: deviceName, 
+      section: deviceSection, 
+      avgLevel: averageLevel.toFixed(1), 
+      peakLevel: peakLevel.toFixed(1),
+      soundType: soundType || '(no triggered sound)' 
+    });
+    
+    window.api.saveNoiseReport(reportData)
+      .then(response => {
+        if (response && response.success) {
+          console.log(`[DB] ✓ Noise report saved (ID: ${response.id}) - Avg: ${averageLevel.toFixed(1)}dB, Peak: ${peakLevel.toFixed(1)}dB, Sound: ${soundType || 'background only'}`);
+        } else {
+          console.error('[DB] ✗ Error saving noise report:', response?.error || 'Unknown error');
+        }
+      })
+      .catch(error => {
+        console.error('[DB] ✗ IPC invoke error for save-noise-report:', error);
+      });
+  } catch (error) {
+    console.error('[DB] ✗ Exception in saveNoiseReportToDb:', error);
+  }
+}
+
+/**
+ * Setup Reports UI event listeners
+ */
+function setupReportsEventListeners() {
+  // No event listeners needed - Reports automatically load when Reports tab is clicked
+  console.log('Reports view initialized');
+}
+
+/**
+ * Export reports to CSV
+ */
+async function exportReportsToCSV() {
+  try {
+    const deviceFilter = document.getElementById('report-device-filter')?.value || '';
+    const daysFilter = parseInt(document.getElementById('report-days-filter')?.value || '30');
+    
+    const now = Date.now();
+    const startTime = now - (daysFilter * 24 * 60 * 60 * 1000);
+    
+    const options = {
+      startTime: startTime,
+      endTime: now
+    };
+    
+    if (deviceFilter) {
+      options.device_id = deviceFilter;
+    }
+    
+    const response = await window.api.getNoiseReports(options);
+    
+    if (!response.success || !response.reports || response.reports.length === 0) {
+      alert('No reports to export');
+      return;
+    }
+    
+    // Create CSV content
+    const headers = ['Date', 'Time', 'Section', 'Device', 'Average Level (dB)', 'Peak Level (dB)', 'Sound Type'];
+    const rows = response.reports.map(r => {
+      const date = new Date(r.timestamp);
+      return [
+        date.toLocaleDateString('en-US'),
+        date.toLocaleTimeString('en-US'),
+        r.device_section || r.device_name || 'N/A',
+        r.device_name || r.device_id,
+        r.average_level?.toFixed(1) || '--',
+        r.peak_level?.toFixed(1) || '--',
+        r.sound_type || '--'
+      ];
+    });
+    
+    const csv = [headers, ...rows].map(row => 
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    
+    // Create download link
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `noise-reports-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    console.log('✓ Reports exported to CSV');
+  } catch (error) {
+    console.error('Error exporting reports:', error);
+    alert('Error exporting reports');
+  }
+}
+
+// Initialize Reports UI when app loads
+if (state.uiReady && state.isLoggedIn) {
+  setupReportsEventListeners();
 }
 
