@@ -63,6 +63,8 @@ async function initializeDatabase() {
         sound_type TEXT,
         duration_minutes INTEGER,
         notes TEXT,
+        user_feedback TEXT,
+        corrected_sound_type TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`,
       `CREATE TABLE IF NOT EXISTS alerts_log (
@@ -131,6 +133,32 @@ function migrateDatabase() {
           saveDatabase();
         } catch (e) {
           console.warn('⚠️  Could not add device_section column (may already exist):', e.message);
+        }
+      }
+      
+      // Add user_feedback column if needed
+      if (!columns.includes('user_feedback')) {
+        console.log('⚠️  Migrating database: adding user_feedback column...');
+        
+        try {
+          db.run(`ALTER TABLE noise_reports ADD COLUMN user_feedback TEXT`);
+          console.log('✓ user_feedback column added to noise_reports');
+          saveDatabase();
+        } catch (e) {
+          console.warn('⚠️  Could not add user_feedback column (may already exist):', e.message);
+        }
+      }
+      
+      // Add corrected_sound_type column if needed
+      if (!columns.includes('corrected_sound_type')) {
+        console.log('⚠️  Migrating database: adding corrected_sound_type column...');
+        
+        try {
+          db.run(`ALTER TABLE noise_reports ADD COLUMN corrected_sound_type TEXT`);
+          console.log('✓ corrected_sound_type column added to noise_reports');
+          saveDatabase();
+        } catch (e) {
+          console.warn('⚠️  Could not add corrected_sound_type column (may already exist):', e.message);
         }
       }
     }
@@ -1243,6 +1271,51 @@ ipcMain.handle('get-db-stats', (event) => {
     };
   } catch (error) {
     console.error('Error getting database stats:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+/**
+ * Update user feedback (thumbs up/down) for a report
+ */
+ipcMain.handle('update-report-feedback', (event, { reportId, userFeedback }) => {
+  try {
+    if (!db) {
+      return { success: false, error: 'Database not initialized' };
+    }
+    
+    db.run(`
+      UPDATE noise_reports 
+      SET user_feedback = ? 
+      WHERE id = ?
+    `, [userFeedback || null, reportId]);
+    
+    saveDatabase();
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating report feedback:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Update corrected sound type for a report
+ */
+ipcMain.handle('update-report-corrected-type', (event, { reportId, correctedSoundType }) => {
+  try {
+    if (!db) {
+      return { success: false, error: 'Database not initialized' };
+    }
+    
+    db.run(`
+      UPDATE noise_reports 
+      SET corrected_sound_type = ? 
+      WHERE id = ?
+    `, [correctedSoundType || null, reportId]);
+    
+    saveDatabase();
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating corrected sound type:', error.message);
     return { success: false, error: error.message };
   }
 });

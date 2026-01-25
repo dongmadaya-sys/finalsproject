@@ -1596,3 +1596,69 @@ canvas#noiseChart {
   
   .reports-title {
     font-size: 1.25rem;
+  }
+}
+
+/* Feedback Buttons */
+.feedback-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.feedback-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.feedback-btn:hover {
+  background-color: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.5);
+  color: var(--status-safe);
+}
+
+.feedback-btn.active {
+  background-color: rgba(34, 211, 238, 0.3);
+  border-color: var(--status-safe);
+  color: var(--status-safe);
+}
+
+.feedback-btn.active.thumbs-down {
+  background-color: rgba(244, 63, 94, 0.3);
+  border-color: var(--status-critical);
+  color: var(--status-critical);
+}
+
+/* Corrected Type Input */
+.corrected-type-input {
+  padding: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  width: 100%;
+  max-width: 150px;
+  transition: all 0.2s ease;
+}
+
+.corrected-type-input:focus {
+  outline: none;
+  border-color: var(--status-safe);
+  background-color: rgba(34, 211, 238, 0.1);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.2);
+}
+
+.corrected-type-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+}

@@ -11,6 +11,8 @@
 8. [Data Flow](#data-flow)
 9. [Database Schema](#database-schema)
 10. [API Reference](#api-reference)
+11. [User Feedback System](#user-feedback-system)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -27,6 +29,7 @@
 - **Alert System**: Automatic alerts when noise exceeds thresholds
 - **Data Persistence**: SQLite database for storing reports, alerts, and summaries
 - **WiFi Configuration**: Serial-based WiFi credential management for Arduino devices
+- **User Feedback Integration**: Thumbs up/down validation and corrected sound type input for improving classification accuracy
 
 ---
 
@@ -640,6 +643,8 @@ CREATE TABLE noise_reports (
   sound_type TEXT,                         -- 'human_voice', 'impact_noise'
   duration_minutes INTEGER,                -- How long noise was present
   notes TEXT,                              -- User notes
+  user_feedback TEXT,                      -- 'correct', 'incorrect', or null
+  corrected_sound_type TEXT,               -- User-provided correct classification
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -785,6 +790,17 @@ const stats = await window.api.getDbStats()
 
 // Delete old data
 await window.api.deleteOldReports(30)  // Delete reports > 30 days old
+
+// User Feedback APIs
+await window.api.updateReportFeedback({
+  reportId: 123,
+  userFeedback: 'correct'  // 'correct', 'incorrect', or empty string to clear
+})
+
+await window.api.updateReportCorrectedType({
+  reportId: 123,
+  correctedSoundType: 'human_voice'  // User's corrected classification
+})
 ```
 
 #### Device APIs
@@ -873,6 +889,122 @@ const status = await window.api.getArduinoStatus()
 
 ---
 
+## User Feedback System
+
+### Overview
+The user feedback integration allows library staff to validate and correct AI-generated sound classifications directly in the reports table. This feedback is stored in the database to improve model accuracy over time.
+
+### Features
+
+#### Thumbs Up/Down Feedback
+- Click **👍** to mark a classification as correct
+- Click **👎** to mark a classification as incorrect
+- Buttons are togglable (click again to deselect)
+- Feedback is automatically saved to the database
+
+**Visual States**:
+- **Inactive**: Gray with transparent background
+- **Active (Correct)**: Cyan glow
+- **Active (Incorrect)**: Red glow
+
+#### Corrected Sound Type Field
+- Text input field for users to enter the correct sound classification
+- Saved on blur/change event
+- Supports any text input (allows future classification additions)
+
+### Database Columns
+Two new columns track user feedback in the `noise_reports` table:
+
+1. **user_feedback** (TEXT)
+   - Values: `'correct'`, `'incorrect'`, or NULL
+   - Used to track if classification was validated by user
+
+2. **corrected_sound_type** (TEXT)
+   - User-provided correct sound type
+   - Useful for retraining models with ground truth labels
+
+### UI Implementation
+The Reports view displays feedback controls for each report row:
+
+```
+| Date | Time | Section | Device | Avg | Peak | Sound Type | [Feedback] | [Corrected Type] |
+|------|------|---------|--------|-----|------|------------|------------|------------------|
+| ... | ... | ... | ... | ... | ... | human_voice | 👍 👎 | [Type here...]   |
+```
+
+### IPC APIs
+
+**Update feedback (thumbs up/down)**:
+```javascript
+await window.api.updateReportFeedback({
+  reportId: 123,
+  userFeedback: 'correct'  // or 'incorrect', or '' to clear
+});
+```
+
+**Update corrected classification**:
+```javascript
+await window.api.updateReportCorrectedType({
+  reportId: 123,
+  correctedSoundType: 'mechanical_sound'
+});
+```
+
+### Backend Implementation
+
+#### Main Process Handlers (`main.js`)
+```javascript
+ipcMain.handle('update-report-feedback', (event, { reportId, userFeedback }) => {
+  // Updates the user_feedback column
+  db.run(`UPDATE noise_reports SET user_feedback = ? WHERE id = ?`, 
+    [userFeedback || null, reportId]);
+  saveDatabase();
+  return { success: true };
+});
+
+ipcMain.handle('update-report-corrected-type', (event, { reportId, correctedSoundType }) => {
+  // Updates the corrected_sound_type column
+  db.run(`UPDATE noise_reports SET corrected_sound_type = ? WHERE id = ?`, 
+    [correctedSoundType || null, reportId]);
+  saveDatabase();
+  return { success: true };
+});
+```
+
+#### Preload Bridge (`preload.js`)
+Exposes the feedback APIs to the renderer process:
+```javascript
+updateReportFeedback: (data) => ipcRenderer.invoke('update-report-feedback', data),
+updateReportCorrectedType: (data) => ipcRenderer.invoke('update-report-corrected-type', data),
+```
+
+#### Frontend Handlers (`renderer.js`)
+- `handleFeedback(event, reportId, feedbackValue)` - Handles button clicks, toggles active state, saves feedback
+- `handleCorrectedType(event, reportId)` - Handles text input changes, saves corrected type
+- `displayReports(reports)` - Renders feedback buttons and input fields for each report
+
+### Styling (`styles.css`)
+
+**Feedback Buttons**:
+- `.feedback-buttons` - Flex container with 0.5rem gap
+- `.feedback-btn` - Button styling with hover effects
+- `.feedback-btn.active` - Cyan highlight for correct, red for incorrect
+
+**Input Field**:
+- `.corrected-type-input` - Text input with dark theme styling
+- Max-width: 150px for table layout
+- Focus state shows cyan border and glow effect
+
+### Future Enhancements
+- [ ] Analytics dashboard showing feedback accuracy rates
+- [ ] Batch feedback actions (select multiple reports)
+- [ ] Feedback history and audit trail
+- [ ] ML model retraining pipeline using feedback data
+- [ ] Feedback statistics per device/section
+- [ ] Export corrected classifications for model improvement
+
+---
+
 ## Troubleshooting
 
 ### ESP32 Not Connecting
@@ -941,5 +1073,12 @@ For detailed configuration guides, see the respective file headers:
 ---
 
 **Last Updated**: January 25, 2026
-**System Version**: 0.1.0
+**System Version**: 0.2.0
+**Documentation Version**: 1.1
+
+### Recent Changes (v0.2.0)
+- Added User Feedback Integration - thumbs up/down validation buttons
+- Added Corrected Sound Type field for user-provided classifications
+- Enhanced noise_reports table with user_feedback and corrected_sound_type columns
+- Integrated feedback IPC APIs and database handlers
 **Documentation Version**: 1.0

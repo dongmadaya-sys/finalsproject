@@ -20,6 +20,8 @@ try {
     getDailySummaries: (options) => ipcRenderer.invoke('get-daily-summaries', options),
     getDbStats: () => ipcRenderer.invoke('get-db-stats'),
     deleteOldReports: (daysOld) => ipcRenderer.invoke('delete-old-reports', daysOld),
+    updateReportFeedback: (data) => ipcRenderer.invoke('update-report-feedback', data),
+    updateReportCorrectedType: (data) => ipcRenderer.invoke('update-report-corrected-type', data),
     // WiFi APIs
     scanWiFiNetworks: () => ipcRenderer.invoke('scan-wifi-networks'),
     connectToWiFi: (ssid, password) => ipcRenderer.invoke('connect-to-wifi', { ssid, password }),

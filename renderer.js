@@ -1685,7 +1685,7 @@ function displayReports(reports) {
   if (!tbody) return;
   
   if (!reports || reports.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="no-data">No reports available</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="no-data">No reports available</td></tr>';
     return;
   }
   
@@ -1694,8 +1694,11 @@ function displayReports(reports) {
     const dateStr = date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
     const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
     
+    const feedback = report.user_feedback || '';
+    const corrected = report.corrected_sound_type || '';
+    
     return `
-      <tr>
+      <tr data-report-id="${report.id}">
         <td>${dateStr}</td>
         <td>${timeStr}</td>
         <td>${escapeHtml(report.device_section || report.device_name || 'N/A')}</td>
@@ -1703,6 +1706,15 @@ function displayReports(reports) {
         <td>${report.average_level?.toFixed(1) || '--'}</td>
         <td>${report.peak_level?.toFixed(1) || '--'}</td>
         <td>${report.sound_type ? escapeHtml(report.sound_type) : '--'}</td>
+        <td>
+          <div class="feedback-buttons">
+            <button class="feedback-btn thumbs-up ${feedback === 'correct' ? 'active' : ''}" title="Correct" data-feedback="correct" onclick="handleFeedback(event, ${report.id}, 'correct')">👍</button>
+            <button class="feedback-btn thumbs-down ${feedback === 'incorrect' ? 'active' : ''}" title="Incorrect" data-feedback="incorrect" onclick="handleFeedback(event, ${report.id}, 'incorrect')">👎</button>
+          </div>
+        </td>
+        <td>
+          <input type="text" class="corrected-type-input" placeholder="Type here..." value="${escapeHtml(corrected)}" data-report-id="${report.id}" onchange="handleCorrectedType(event, ${report.id})" />
+        </td>
       </tr>
     `;
   }).join('');
@@ -1878,6 +1890,64 @@ async function exportReportsToCSV() {
   } catch (error) {
     console.error('Error exporting reports:', error);
     alert('Error exporting reports');
+  }
+}
+
+/**
+ * Handle thumbs up/down feedback
+ */
+async function handleFeedback(event, reportId, feedbackValue) {
+  event.preventDefault();
+  
+  try {
+    // Toggle active state
+    const button = event.target;
+    const isActive = button.classList.contains('active');
+    const feedbackToSave = isActive ? '' : feedbackValue;
+    
+    // Remove active class from both buttons in this row
+    const row = button.closest('tr');
+    row.querySelectorAll('.feedback-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Add active class if not toggling off
+    if (feedbackToSave) {
+      button.classList.add('active');
+    }
+    
+    // Save to database
+    const response = await window.api.updateReportFeedback({
+      reportId: reportId,
+      userFeedback: feedbackToSave
+    });
+    
+    if (!response.success) {
+      console.error('Error saving feedback:', response.error);
+      alert('Error saving feedback');
+    }
+  } catch (error) {
+    console.error('Error in handleFeedback:', error);
+  }
+}
+
+/**
+ * Handle corrected sound type input
+ */
+async function handleCorrectedType(event, reportId) {
+  try {
+    const correctedType = event.target.value.trim();
+    
+    // Save to database
+    const response = await window.api.updateReportCorrectedType({
+      reportId: reportId,
+      correctedSoundType: correctedType
+    });
+    
+    if (!response.success) {
+      console.error('Error saving corrected type:', response.error);
+      alert('Error saving corrected type');
+    }
+  } catch (error) {
+    console.error('Error in handleCorrectedType:', error);
   }
 }
 
