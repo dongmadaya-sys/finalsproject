@@ -341,12 +341,104 @@
 
 
     <script>
+        // Web Audio API for sound notifications
+        let audioContext = null;
+
+        /**
+         * Generate and play a notification sound using Web Audio API
+         * Creates a pleasant alert beep that's attention-grabbing but not harsh
+         */
+        function playNotificationSound() {
+            try {
+                // Initialize audio context if not already done
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                // Ensure audio context is not suspended (can happen on some browsers)
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+
+                const now = audioContext.currentTime;
+                const duration = 0.5; // 500ms total duration
+
+                // Create oscillator for the tone
+                const osc = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                // Connect nodes
+                osc.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // Set frequency: Start at 800Hz for attention
+                osc.frequency.value = 800;
+                
+                // Create a quick pitch slide up for more attention-grabbing effect
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(800, now + duration);
+
+                // Set volume with fade-in and fade-out
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05);  // Fade in quickly
+                gainNode.gain.setValueAtTime(0.3, now + 0.3);             // Hold at comfortable level
+                gainNode.gain.linearRampToValueAtTime(0, now + duration); // Fade out
+
+                // Set wave type for smoother sound
+                osc.type = 'sine';
+
+                // Play the sound
+                osc.start(now);
+                osc.stop(now + duration);
+
+                // Optional: Play a second beep for additional emphasis
+                setTimeout(() => {
+                    try {
+                        const osc2 = audioContext.createOscillator();
+                        const gain2 = audioContext.createGain();
+                        osc2.connect(gain2);
+                        gain2.connect(audioContext.destination);
+
+                        const now2 = audioContext.currentTime;
+                        const duration2 = 0.3;
+
+                        osc2.frequency.value = 600;
+                        osc2.frequency.setValueAtTime(600, now2);
+                        osc2.frequency.exponentialRampToValueAtTime(800, now2 + duration2);
+
+                        gain2.gain.setValueAtTime(0, now2);
+                        gain2.gain.linearRampToValueAtTime(0.2, now2 + 0.04);
+                        gain2.gain.setValueAtTime(0.2, now2 + 0.15);
+                        gain2.gain.linearRampToValueAtTime(0, now2 + duration2);
+
+                        osc2.type = 'sine';
+                        osc2.start(now2);
+                        osc2.stop(now2 + duration2);
+                    } catch (e) {
+                        console.warn('Could not play second beep:', e.message);
+                    }
+                }, 300);
+
+            } catch (error) {
+                console.warn('Could not play notification sound:', error.message);
+                // Fallback: Try system beep using a simple approach
+                try {
+                    // Mute and restore to create a visual notification if sound fails
+                    console.log('⚠️ Sound notification unavailable, using visual alert only');
+                } catch (e) {
+                    console.warn('Sound notification error:', e.message);
+                }
+            }
+        }
+
         // Alert Notification System
         function showAlert(title, message, options = {}) {
             const {
                 autoClose = false,
                 autoCloseDelay = 5000,
-                timestamp = null
+                timestamp = null,
+                playSound = true  // Play sound by default for alerts
             } = options;
 
             const overlay = document.getElementById('alert-overlay');
@@ -367,6 +459,11 @@
             // Show modal
             overlay.style.display = 'flex';
             modal.style.display = 'block';
+
+            // Play notification sound
+            if (playSound) {
+                playNotificationSound();
+            }
 
             // Auto-close if enabled
             if (autoClose) {
@@ -395,7 +492,8 @@
                     showAlert(title, message, {
                         autoClose: true,
                         autoCloseDelay: 4000,
-                        timestamp: timestamp
+                        timestamp: timestamp,
+                        playSound: true  // Always play sound for noise disturbance alerts
                     });
                 });
             }

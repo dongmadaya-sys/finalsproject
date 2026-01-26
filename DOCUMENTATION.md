@@ -11,8 +11,9 @@
 8. [Data Flow](#data-flow)
 9. [Database Schema](#database-schema)
 10. [API Reference](#api-reference)
-11. [User Feedback System](#user-feedback-system)
-12. [Troubleshooting](#troubleshooting)
+11. [Alert System](#alert-system)
+12. [User Feedback System](#user-feedback-system)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -29,7 +30,10 @@
 - **AI Sound Classification**: Uses TensorFlow.js pre-trained SpeechCommands model to classify sound types (human voice, impact noise, mechanical sounds, etc.)
 - **User Authentication**: Login system to secure access to noise reports
 - **Visual Dashboards**: Real-time charts, gauges, and reports showing noise patterns
-- **Alert System**: Automatic alerts when noise exceeds thresholds
+- **Alert System**: Automatic alerts with visual AND audio notifications when noise exceeds thresholds
+  - Visual alert modal with detailed device and noise level information
+  - Sound notification using Web Audio API (pleasant dual-tone alert beep)
+  - Real-time notification in alerts sidebar
 - **Data Persistence**: SQLite database for storing reports, alerts, and summaries
 - **WiFi Configuration**: Serial-based WiFi credential management for Arduino devices
 - **User Feedback Integration**: Thumbs up/down validation and corrected sound type input for improving classification accuracy
@@ -437,7 +441,24 @@ state.devices[deviceId] = {
 5. Alert state management
 
 #### **alert_demo.html**
-**Purpose**: Demonstration of alert modal styling and behavior
+**Purpose**: Alert notification window with sound notification system
+
+**Key Features**:
+- **Visual Alert Display**: Glass-morphism styled modal with alert title and message
+- **Sound Notification**: Web Audio API-generated dual-tone alert sound
+  - First beep: 800Hz → 1000Hz (500ms) with fade in/out
+  - Second beep: 600Hz → 800Hz (300ms) with fade in/out
+  - Pleasant, attention-grabbing tone that's not harsh
+  - Automatic playback when alert is triggered
+- **Auto-dismissal**: Alerts auto-close after 4 seconds
+- **Modal Styling**: Full-screen alert overlay with high visibility
+- **Responsive Design**: Works across different screen resolutions
+
+**Sound Notification Behavior**:
+- Plays automatically when noise disturbance is detected (exceeds 55dB threshold)
+- Uses Web Audio API for cross-platform browser compatibility
+- Gracefully degrades if audio context is unavailable
+- Fallback to visual alerts only if sound fails
 
 ### Configuration Files
 
@@ -949,6 +970,126 @@ const status = await window.api.getArduinoStatus()
 ```
 
 **Update Interval**: Every 1000ms (configurable on ESP32)
+
+---
+
+## Alert System
+
+### Overview
+The Alert System provides multi-channel notifications to library administrators when noise disturbances occur. It combines real-time visual alerts with audio notifications to ensure immediate awareness.
+
+### Alert Triggers
+- **Noise Exceeds Threshold**: When device detects noise level > 55 dB
+- **Sensor Malfunction**: When one device reports high noise but peer devices are quiet
+- **Device Offline**: When a device hasn't reported in 45+ seconds
+
+### Alert Components
+
+#### 1. **Visual Alert Display** (alert_demo.html)
+- **Location**: Separate full-screen window (typically on secondary display)
+- **Content**: 
+  - Alert title (e.g., "⚠️ Noise Disturbance at Reference Desk")
+  - Device and noise level information
+  - Timestamp of alert occurrence
+- **Auto-close**: Alert dismisses after 4 seconds
+- **Manual dismiss**: Admin can click close button
+- **Styling**: Glass-morphism design with high-contrast colors for visibility
+
+#### 2. **Audio Notification** (Web Audio API)
+- **Trigger**: Plays automatically when visual alert appears
+- **Sound Composition**:
+  ```
+  First Beep:   800Hz → 1000Hz (500ms) with smooth fade in/out
+  Pause:        300ms
+  Second Beep:  600Hz → 800Hz (300ms) with smooth fade in/out
+  ```
+- **Volume**: Comfortable level (~30% system volume) to get attention without causing discomfort
+- **Type**: Sine wave oscillator for smooth, non-harsh tone
+- **Accessibility**: Gracefully degrades if audio context unavailable
+
+#### 3. **UI Alerts Sidebar** (renderer.js)
+- **Location**: Left sidebar in main dashboard
+- **Display**: List of recent alerts with timestamps
+- **Clear Function**: Button to dismiss all alerts from view
+- **Real-time Updates**: Alerts appear instantly as they occur
+
+### Alert Throttling
+- **Rate Limit**: Maximum 1 alert per device every 2 seconds (ALERT_THROTTLE_MS = 2000)
+- **Purpose**: Prevents alert fatigue from repeated notifications
+- **Implementation**: Per-device lastAlertTime tracking
+
+### Alert Data Storage
+Alerts are logged to the `alerts_log` table with:
+```javascript
+{
+  device_id: "esp32-001",
+  device_name: "Device1",
+  alert_type: "noise_exceed",      // Type of alert
+  level: 65.5,                      // Noise level at alert time
+  timestamp: 1705779600000,         // When alert occurred
+  resolved: 0                       // 0=active, 1=resolved
+}
+```
+
+### Alert Workflow
+```
+Device sends high noise data
+    ↓
+Main process receives via WebSocket
+    ↓
+Compares with NOISE_THRESHOLD (55dB)
+    ↓
+If exceeded AND throttle time passed:
+    ├─ Log to alerts_log table
+    ├─ Send to Renderer (UI sidebar update)
+    └─ Send to Alert Window (visual + audio notification)
+    ↓
+Alert displays for 4 seconds
+    ├─ Sound plays (dual-tone beep)
+    ├─ Visual modal shown
+    └─ Sidebar updates in real-time
+    ↓
+Auto-dismiss or manual close
+    ↓
+Data persisted in database for historical review
+```
+
+### Configuration
+
+**Noise Threshold** (main.js):
+```javascript
+const NOISE_THRESHOLD = 55;  // Alert at 55dB and above
+const ALERT_THROTTLE_MS = 2000;  // Max 1 alert per 2 seconds per device
+const INACTIVITY_MS = 45_000;  // Device offline if no update in 45s
+```
+
+### Testing Alerts
+To test the alert system:
+1. Run `npm start`
+2. Connect an ESP32 device (or use test data)
+3. Trigger noise above 55dB
+4. Observe:
+   - Visual alert modal appears on alert window
+   - Audio notification plays (dual-tone beep)
+   - Alert added to sidebar
+   - Data logged in alerts table
+
+### Troubleshooting
+
+**Alert not playing sound**:
+- Check browser audio permissions
+- Ensure system volume is not muted
+- Try clicking anywhere on the page to activate audio context (some browsers require user interaction)
+
+**Alert modal not showing**:
+- Verify alert_demo.html is accessible
+- Check that secondary display/window is visible
+- Review browser console for errors
+
+**Alerts not triggering**:
+- Verify device is connected and sending data
+- Check that noise level exceeds 55dB threshold
+- Confirm throttle time has elapsed (2 seconds minimum between alerts)
 
 ---
 
