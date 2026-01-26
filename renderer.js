@@ -706,7 +706,8 @@ function handleDeviceData(data) {
   state.devices[deviceId] = state.devices[deviceId] || { 
     deviceId, tableId, lastSeen: 0, lastNoise: 0, soundType: '',
     readings: [],      // Track all readings for average/peak
-    triggeredSounds: [] // Track triggered (non-background) sounds
+    triggeredSounds: [], // Track triggered (non-background) sounds
+    deviceHistory: []  // Per-device history for charts (avg, peak, timestamp)
   };
   const dev = state.devices[deviceId];
   dev.lastSeen = ts;
@@ -744,6 +745,14 @@ function handleDeviceData(data) {
     // Save immediately when triggered
     saveNoiseReportToDb(deviceId, getFriendlyDeviceName(deviceId), average, peak, soundType);
     
+    // Add to both global and per-device history
+    const historyEntry = { timestamp: ts, avg: average, peak: peak };
+    state.history.push(historyEntry);
+    if (state.history.length > state.historyMax) state.history.splice(0, state.history.length - state.historyMax);
+    if (!dev.deviceHistory) dev.deviceHistory = [];
+    dev.deviceHistory.push(historyEntry);
+    if (dev.deviceHistory.length > state.historyMax) dev.deviceHistory.splice(0, dev.deviceHistory.length - state.historyMax);
+    
     // Reset readings after triggered save
     dev.readings = [];
     dev.triggeredSounds = [];
@@ -764,6 +773,14 @@ function handleDeviceData(data) {
       
       // Save background readings (no triggered sound)
       saveNoiseReportToDb(deviceId, getFriendlyDeviceName(deviceId), average, peak, null);
+      
+      // Add to both global and per-device history
+      const historyEntry = { timestamp: ts, avg: average, peak: peak };
+      state.history.push(historyEntry);
+      if (state.history.length > state.historyMax) state.history.splice(0, state.history.length - state.historyMax);
+      if (!dev.deviceHistory) dev.deviceHistory = [];
+      dev.deviceHistory.push(historyEntry);
+      if (dev.deviceHistory.length > state.historyMax) dev.deviceHistory.splice(0, dev.deviceHistory.length - state.historyMax);
       
       // Reset accumulators
       dev.readings = [];
@@ -1092,6 +1109,10 @@ function computeAndUpdateMetrics(ts) {
       console.log('[METRICS] Drawing peak gauge with value:', peak);
       drawMeterGauge(peakCanvas, peak, 120);
     }
+    
+    // Update charts for selected device
+    console.log('[METRICS] Calling updateHistoryChartsForDevice for:', state.selectedDevice);
+    updateHistoryChartsForDevice(state.selectedDevice);
   } else {
     // No device selected, show aggregate metrics
     const devicesArr = Object.values(state.devices || {});
@@ -1120,23 +1141,20 @@ function computeAndUpdateMetrics(ts) {
       console.log('[METRICS] Drawing peak gauge with value:', peak);
       drawMeterGauge(peakCanvas, peak, 120);
     }
-  }
-
-  // Push to history with timestamp
-  const devicesArr = Object.values(state.devices || {});
-  if (devicesArr.length) {
-    const vals = devicesArr.map(d => Number(d.lastNoise || 0));
-    const avg = Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
-    const peak = Math.max(...vals);
-    const historyEntry = { timestamp: ts, avg, peak };
+    
+    // Push to history with timestamp for aggregate
+    const vals2 = devicesArr.map(d => Number(d.lastNoise || 0));
+    const avg2 = Math.round(vals2.reduce((a,b)=>a+b,0)/vals2.length);
+    const peak2 = Math.max(...vals2);
+    const historyEntry = { timestamp: ts, avg: avg2, peak: peak2 };
     state.history.push(historyEntry);
-    console.log('[HISTORY] Pushing entry:', historyEntry, 'Total history now:', state.history.length);
+    console.log('[HISTORY] Pushing aggregate entry:', historyEntry, 'Total history now:', state.history.length);
     if (state.history.length > state.historyMax) state.history.splice(0, state.history.length - state.historyMax);
+    
+    // Update charts for aggregate
+    console.log('[METRICS] Calling updateHistoryCharts now. UIReady:', state.uiReady);
+    updateHistoryCharts();
   }
-  
-  // Update charts immediately
-  console.log('[METRICS] Calling updateHistoryCharts now. UIReady:', state.uiReady);
-  updateHistoryCharts();
 }
 
 function updateHistoryCharts() {
@@ -1252,39 +1270,87 @@ function updateHistoryChartsForDevice(deviceId) {
   const dev = state.devices[deviceId];
   if (!dev) return;
   
-  // For now, show the device's last noise level as a placeholder
-  // In a real implementation, you'd store per-device history
+  // Get device history or use global history if device history not available
+  const history = (dev.deviceHistory && dev.deviceHistory.length > 0) ? dev.deviceHistory : state.history;
+  
+  if (!history || history.length === 0) {
+    console.warn('[CHARTS] No history data for device:', deviceId);
+    if (dailyChart) {
+      dailyChart.data.labels = ['No data'];
+      dailyChart.data.datasets[0].data = [0];
+      dailyChart.data.datasets[1].data = [0];
+      dailyChart.data.datasets[2].data = [];
+      dailyChart.update('none');
+    }
+    if (monthlyChart) {
+      monthlyChart.data.labels = ['No data'];
+      monthlyChart.data.datasets[0].data = [0];
+      monthlyChart.data.datasets[1].data = [0];
+      monthlyChart.update('none');
+    }
+    return;
+  }
+  
+  // Daily chart - last 24 hours
   const now = Date.now();
   const dayWindow = 24 * 60 * 60 * 1000;
   const cutoff = now - dayWindow;
   
-  // Create synthetic data for visualization based on current device state
-  const placeholder = [
-    { timestamp: now - dayWindow, noise: dev.lastNoise * 0.8 },
-    { timestamp: now - dayWindow / 2, noise: dev.lastNoise * 0.9 },
-    { timestamp: now, noise: dev.lastNoise }
-  ];
-  
-  const labels = placeholder.map(h => new Date(h.timestamp).toLocaleTimeString());
-  const dataPoints = placeholder.map(h => h.noise);
+  const recent = history.filter(h => h.timestamp >= cutoff);
   const threshold = Number(thresholdEl?.textContent) || 65;
-  const highBars = placeholder.map(h => (h.noise >= threshold ? h.noise : null));
   
-  if (dailyChart) {
-    dailyChart.data.labels = labels;
-    dailyChart.data.datasets[0].data = dataPoints;
-    dailyChart.data.datasets[1].data = dataPoints;
-    dailyChart.data.datasets[2].data = highBars;
-    dailyChart.update('none');
-    console.log('[CHARTS] Daily chart updated for device:', deviceId);
+  if (recent.length === 0) {
+    console.warn('[CHARTS] No data in last 24h for device:', deviceId);
+    if (dailyChart) {
+      dailyChart.data.labels = ['No recent data'];
+      dailyChart.data.datasets[0].data = [0];
+      dailyChart.data.datasets[1].data = [0];
+      dailyChart.data.datasets[2].data = [];
+      dailyChart.update('none');
+    }
+  } else {
+    const labels = recent.map(h => new Date(h.timestamp).toLocaleTimeString());
+    const avgData = recent.map(h => h.avg);
+    const peakData = recent.map(h => h.peak);
+    const highBars = recent.map(h => (h.peak >= threshold ? h.peak : null));
+    
+    if (dailyChart) {
+      const visibleLabels = labels.slice(-state.maxPoints);
+      const visibleAvg = avgData.slice(-state.maxPoints);
+      const visiblePeak = peakData.slice(-state.maxPoints);
+      const visibleBars = highBars.slice(-state.maxPoints);
+      
+      dailyChart.data.labels = visibleLabels;
+      dailyChart.data.datasets[0].data = visibleAvg;
+      dailyChart.data.datasets[1].data = visiblePeak;
+      dailyChart.data.datasets[2].data = visibleBars;
+      dailyChart.update('none');
+      console.log('[CHARTS] Daily chart updated for device:', deviceId, 'with', visibleLabels.length, 'points');
+    }
   }
   
+  // Monthly chart - aggregated by day
+  const daysMap = {};
+  history.forEach(h => {
+    const d = new Date(h.timestamp);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    daysMap[key] = daysMap[key] || { sumAvg: 0, count: 0, maxPeak: 0 };
+    daysMap[key].sumAvg += h.avg;
+    daysMap[key].count += 1;
+    daysMap[key].maxPeak = Math.max(daysMap[key].maxPeak, h.peak);
+  });
+  
+  const dayKeys = Object.keys(daysMap).sort();
+  const monthLabels = dayKeys;
+  const monthAvg = dayKeys.map(k => Math.round(daysMap[k].sumAvg / daysMap[k].count));
+  const monthPeak = dayKeys.map(k => daysMap[k].maxPeak);
+  
   if (monthlyChart) {
-    monthlyChart.data.labels = labels;
-    monthlyChart.data.datasets[0].data = dataPoints;
-    monthlyChart.data.datasets[1].data = dataPoints;
+    monthlyChart.data.labels = monthLabels;
+    monthlyChart.data.datasets[0].data = monthAvg;
+    monthlyChart.data.datasets[1].data = monthPeak;
     monthlyChart.update('none');
-    console.log('[CHARTS] Monthly chart updated for device:', deviceId);
+    console.log('[CHARTS] Monthly chart updated for device:', deviceId, 'with', monthLabels.length, 'days');
   }
 }
 

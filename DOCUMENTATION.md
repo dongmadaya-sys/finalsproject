@@ -22,8 +22,11 @@
 
 ### Key Features
 - **Real-time Noise Monitoring**: Continuously monitors noise levels across multiple devices
+- **Multi-Device Support**: Manages multiple ESP32 devices with independent data tracking
+  - Each device maintains its own history for accurate per-device trending
+  - Live noise charts show real-time data for the selected device
+  - Daily and Monthly trend charts display per-device historical data
 - **AI Sound Classification**: Uses TensorFlow.js pre-trained SpeechCommands model to classify sound types (human voice, impact noise, mechanical sounds, etc.)
-- **Multi-Device Support**: Manages multiple ESP32 devices placed in different library sections
 - **User Authentication**: Login system to secure access to noise reports
 - **Visual Dashboards**: Real-time charts, gauges, and reports showing noise patterns
 - **Alert System**: Automatic alerts when noise exceeds thresholds
@@ -194,7 +197,7 @@ GND              →    GND             →    Ground
 - `SoundClassifier` - Instantiated for AI-based sound classification
 - `ArduinoWiFiHandler` - Manages serial communication with ESP32
 
-#### **renderer.js** (1889 lines)
+#### **renderer.js** (2025 lines)
 **Purpose**: Electron renderer process — UI logic and user interactions
 
 **Key Responsibilities**:
@@ -205,21 +208,62 @@ GND              →    GND             →    Ground
 - Alert modal display and management
 - Reports table population
 - Device selection and filtering
+- Per-device history tracking and chart updates
 - Chart refresh intervals and data buffering
+
+**Key Features** (New in v2.0):
+- **Per-Device History Storage**: Each device maintains its own `deviceHistory` array
+  - Stores historical data points with timestamp, average noise, and peak noise
+  - Independent from global history for accurate per-device trending
+  - Synchronized with global history for aggregate metrics
+
+- **Multi-Device Chart Display**:
+  - Live chart shows real-time data for selected device
+  - Daily trends display last 24 hours of per-device data
+  - Monthly overview aggregates per-device data by day
+  - Automatic chart updates when switching between devices
 
 **Key Functions**:
 - `handleLogin()` - Authenticates user
+- `selectDeviceTab(deviceId)` - Switches to device and updates charts
+- `updateChartsForDevice(deviceId)` - Updates live chart for selected device
+- `updateHistoryChartsForDevice(deviceId)` - Updates daily/monthly trends using per-device history
 - `updateDeviceList()` - Renders device cards
 - `updateNoiseChart()` - Updates real-time noise line chart
 - `drawMeterGauge()` - Custom analog gauge drawing
 - `showAlert()` - Displays alert modals
 - `generateReport()` - Creates noise reports
+- `computeAndUpdateMetrics(ts)` - Aggregates metrics and calls appropriate chart update functions
+
+**Device State Structure**:
+```javascript
+state.devices[deviceId] = {
+  deviceId,           // Device identifier
+  tableId,            // Library section assignment
+  lastSeen,           // Last update timestamp
+  lastNoise,          // Current noise level
+  soundType,          // Current sound classification
+  readings: [],       // Accumulator for readings (for statistics)
+  triggeredSounds: [], // Tracked non-background sounds
+  deviceHistory: []   // Per-device historical data for charts
+}
+```
+
+**History Entry Format**:
+```javascript
+{
+  timestamp: <milliseconds>,
+  avg: <average noise level>,
+  peak: <peak noise level>
+}
+```
 
 **UI Components**:
 - Device cards (real-time noise display)
-- Live noise chart (30-point rolling window)
+- Device tabs (multi-device navigation)
+- Live noise chart (30-point rolling window, per-device)
 - Average & Peak gauges (analog meter style)
-- Daily & Monthly trend charts
+- Daily & Monthly trend charts (per-device history)
 - Alerts sidebar
 - Reports table
 
@@ -604,10 +648,52 @@ node test_login_flow.js
    ┌─ Receive device-data IPC message
    ├─ Update device state object
    ├─ Add to Chart.js data
+   ├─ Add to per-device history
    ├─ Redraw charts if needed
    ├─ Update gauge values
    └─ Show alert modal if triggered
 ```
+
+### Multi-Device Chart System (New in v2.0)
+
+**Chart Update Flow** (when device is selected):
+
+```
+Device Data Arrives → computeAndUpdateMetrics(ts)
+        │
+        ├─ If device is selected:
+        │  ├─ updateHistoryChartsForDevice(deviceId)
+        │  │  ├─ Get device's own history (dev.deviceHistory)
+        │  │  ├─ Extract last 24-hour data → Daily chart
+        │  │  ├─ Aggregate by day → Monthly chart
+        │  │  └─ Update charts with device-specific data
+        │
+        └─ If no device selected:
+           ├─ updateHistoryCharts()
+           │  ├─ Use global state.history
+           │  ├─ Show aggregate metrics
+           │  └─ Update charts with all devices' data
+```
+
+**Per-Device History Management**:
+- Each device maintains a `deviceHistory` array (max 2880 entries)
+- History entries: `{ timestamp, avg, peak }`
+- When new data arrives:
+  - **Triggered sounds**: Immediately added to both global and per-device history
+  - **Background readings**: Added every 10 samples to both histories
+  - **Memory-efficient**: Old entries pruned when max size exceeded
+
+**Chart Display Logic**:
+1. **Live Noise Chart**: Shows real-time data for selected device only (multi-line, one per device)
+2. **Daily Trend**: Last 24 hours of selected device's average & peak levels
+3. **Monthly Overview**: Aggregated daily data for selected device
+4. **Automatic Fallback**: If device has no history, uses global history as fallback
+
+**Device Switching**:
+- User clicks device tab → `selectDeviceTab(deviceId)` called
+- → `updateChartsForDevice(deviceId)` filters live chart
+- → `updateHistoryChartsForDevice(deviceId)` updates daily/monthly with device's history
+- All charts update instantly to show selected device's data
 
 ### Database Update Flow
 
@@ -624,6 +710,11 @@ VALUES ('esp32-001', 'Device1', 1705779600000, 65.2, 78.5, 'human_voice', 5)
 - Daily summaries computed from hourly data
 - Monthly overviews from daily summaries
 - Avg/Peak calculations using SQL aggregates
+
+**In-Memory History** (for charts):
+- Global `state.history`: Aggregate data across all devices
+- Per-device `deviceHistory`: Individual device trends
+- Both updated in real-time as data arrives
 
 ---
 

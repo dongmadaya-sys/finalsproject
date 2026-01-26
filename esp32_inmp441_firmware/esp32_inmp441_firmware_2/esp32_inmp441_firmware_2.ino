@@ -44,7 +44,7 @@
 // ==================== CONFIGURATION ====================
 // WiFi
 #define WIFI_SSID "TECNO POVA 5 Pro 5G"
-#define WIFI_PASSWORD ""  // UPDATE WITH YOUR NETWORK PASSWORD
+#define WIFI_PASSWORD "123446789"  // UPDATE WITH YOUR NETWORK PASSWORD
 #define SERVER_IP "10.25.163.5"  // Your PC's local IP address (new network)
 #define SERVER_PORT 8080
 #define WS_PATH "/"
@@ -242,14 +242,18 @@ void connectToWiFi() {
 // ==================== WebSocket FUNCTIONS ====================
 void initWebSocket() {
   if (!wifiConnected) {
-    Serial.println("[WS] Skipping WebSocket init (WiFi not connected)");
+    Serial.println("[WS] ✗ Skipping WebSocket init (WiFi not connected)");
+    Serial.println("[WS] ERROR: WiFi must be connected before WebSocket initialization");
     return;
   }
   
-  Serial.println("[WS] Initializing WebSocket...");
-  Serial.println("  - Server: ws://" + String(SERVER_IP) + ":" + String(SERVER_PORT));
-  Serial.println("  - Path: " + String(WS_PATH));
-  Serial.println("  - Attempting connection...");
+  Serial.println("\n[WS] ========== WebSocket Initialization ==========");
+  Serial.println("[WS] Server Configuration:");
+  Serial.println("[WS]   - IP Address: " + String(SERVER_IP));
+  Serial.println("[WS]   - Port: " + String(SERVER_PORT));
+  Serial.println("[WS]   - Path: " + String(WS_PATH));
+  Serial.println("[WS]   - Full URL: ws://" + String(SERVER_IP) + ":" + String(SERVER_PORT) + WS_PATH);
+  Serial.println("[WS] Attempting connection...");
   
   // Configure WebSocket with all compatible settings
   webSocket.begin(SERVER_IP, SERVER_PORT, WS_PATH);
@@ -257,37 +261,57 @@ void initWebSocket() {
   webSocket.setReconnectInterval(3000);  // Try to reconnect every 3 seconds
   webSocket.enableHeartbeat(15000, 3000, 2);  // Send heartbeat every 15s, timeout after 3s
   
-  Serial.println("✓ WebSocket client configured");
-  Serial.println("  - Reconnect interval: 3000ms");
-  Serial.println("  - Heartbeat enabled");
+  Serial.println("[WS] ✓ WebSocket client configured");
+  Serial.println("[WS]   - Auto-reconnect: 3000ms");
+  Serial.println("[WS]   - Heartbeat: 15000ms (timeout: 3000ms)");
+  Serial.println("[WS] ===================================================\n");
 }
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
       wsConnected = false;
-      Serial.println("[WS] Disconnected from server");
-      Serial.println("  - WiFi Status: " + String(WiFi.status()));
-      Serial.println("  - Attempting to reconnect...");
+      Serial.println("\n[WS] ✗ DISCONNECTED FROM SERVER");
+      Serial.println("[WS] Connection lost - Attempting automatic reconnect...");
+      Serial.println("[WS] Diagnostics:");
+      Serial.println("[WS]   - WiFi Status: " + String(WiFi.status() == WL_CONNECTED ? "CONNECTED ✓" : "DISCONNECTED ✗"));
+      Serial.println("[WS]   - WiFi RSSI: " + String(WiFi.RSSI()) + " dBm");
+      Serial.println("[WS]   - Target Server: ws://" + String(SERVER_IP) + ":" + String(SERVER_PORT));
+      Serial.println("[WS]   - Reconnect Interval: 3000ms");
+      Serial.println("[WS] Note: Check if server (PC) is running on port 8080\n");
       break;
       
     case WStype_CONNECTED:
       wsConnected = true;
-      Serial.println("[WS] ✓ Connected to server");
-      Serial.println("  - Ready to send audio data");
-      Serial.println("  - Sending data every " + String(UPDATE_INTERVAL_MS) + " ms");
+      Serial.println("\n[WS] ✓✓✓ CONNECTED TO SERVER ✓✓✓");
+      Serial.println("[WS] Connection established successfully!");
+      Serial.println("[WS]   - Server: ws://" + String(SERVER_IP) + ":" + String(SERVER_PORT));
+      Serial.println("[WS]   - Status: READY to send audio data");
+      Serial.println("[WS]   - Update Interval: " + String(UPDATE_INTERVAL_MS) + " ms");
+      Serial.println("[WS] Starting audio data transmission...\n");
       break;
       
     case WStype_TEXT:
-      Serial.println("[WS] Message from server: " + String((char*)payload));
+      Serial.println("[WS] 📨 Message from server: " + String((char*)payload));
       break;
       
     case WStype_ERROR:
-      Serial.println("[WS] Connection Error!");
-      Serial.println("  - Error: " + String((char*)payload));
-      Serial.println("  - Verify: Server IP (" + String(SERVER_IP) + "), Port (" + String(SERVER_PORT) + ")");
-      Serial.println("  - Verify: PC and ESP32 are on same WiFi network");
-      Serial.println("  - Verify: Firewall allows port " + String(SERVER_PORT));
+      Serial.println("\n[WS] ✗✗✗ CONNECTION ERROR ✗✗✗");
+      Serial.println("[WS] WebSocket connection failed!");
+      Serial.println("[WS] Error Details: " + String((char*)payload));
+      Serial.println("[WS] Troubleshooting Checklist:");
+      Serial.println("[WS]   1. Verify SERVER_IP is correct: " + String(SERVER_IP));
+      Serial.println("[WS]   2. Verify SERVER_PORT is correct: " + String(SERVER_PORT));
+      Serial.println("[WS]   3. Check WiFi connection: " + String(WiFi.status() == WL_CONNECTED ? "OK ✓" : "FAILED ✗"));
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("[WS]      IP: " + WiFi.localIP().toString());
+        Serial.println("[WS]      Gateway: " + WiFi.gatewayIP().toString());
+      }
+      Serial.println("[WS]   4. Verify PC and ESP32 are on SAME network");
+      Serial.println("[WS]   5. Check firewall allows incoming connections on port 8080");
+      Serial.println("[WS]   6. Ensure main.js WebSocket server is running");
+      Serial.println("[WS]   7. Verify PC IP matches SERVER_IP in firmware");
+      Serial.println("[WS]   Status: Retrying connection in 3 seconds...\n");
       break;
       
     default:
@@ -649,17 +673,38 @@ void loop() {
   // Handle WebSocket connection (non-blocking)
   webSocket.loop();
   
-  // Print connection status every 10 seconds
+  // Print connection status every 10 seconds for diagnostics
   unsigned long now = millis();
   if (now - lastStatusCheck > 10000) {
     lastStatusCheck = now;
-    if (wsConnected) {
-      Serial.println("[STATUS] ✓ WebSocket CONNECTED - Ready to send");
+    Serial.println("\n[LOOP_STATUS] ========== Diagnostics (every 10s) ==========");
+    
+    if (wifiConnected) {
+      Serial.println("[LOOP_STATUS] ✓ WiFi: CONNECTED");
+      Serial.println("[LOOP_STATUS]   - IP: " + WiFi.localIP().toString());
+      Serial.println("[LOOP_STATUS]   - RSSI: " + String(WiFi.RSSI()) + " dBm");
+      Serial.println("[LOOP_STATUS]   - Channel: " + String(WiFi.channel()));
     } else {
-      Serial.println("[STATUS] ✗ WebSocket DISCONNECTED - Attempting reconnect...");
-      Serial.println("        WiFi: " + String(WiFi.status() == WL_CONNECTED ? "OK" : "FAILED"));
-      Serial.println("        Server: ws://" + String(SERVER_IP) + ":" + String(SERVER_PORT));
+      Serial.println("[LOOP_STATUS] ✗ WiFi: DISCONNECTED");
+      Serial.println("[LOOP_STATUS]   - Status Code: " + String(WiFi.status()));
+      Serial.println("[LOOP_STATUS]   - Action: Check WiFi network and password");
     }
+    
+    if (wsConnected) {
+      Serial.println("[LOOP_STATUS] ✓ WebSocket: CONNECTED");
+      Serial.println("[LOOP_STATUS]   - Sending data to: ws://" + String(SERVER_IP) + ":" + String(SERVER_PORT));
+    } else {
+      Serial.println("[LOOP_STATUS] ✗ WebSocket: NOT CONNECTED");
+      if (wifiConnected) {
+        Serial.println("[LOOP_STATUS]   - WiFi OK but WebSocket failed");
+        Serial.println("[LOOP_STATUS]   - Verify SERVER_IP: " + String(SERVER_IP));
+        Serial.println("[LOOP_STATUS]   - Verify SERVER_PORT: " + String(SERVER_PORT));
+        Serial.println("[LOOP_STATUS]   - Check if PC server is running");
+      } else {
+        Serial.println("[LOOP_STATUS]   - WiFi not connected (required for WebSocket)");
+      }
+    }
+    Serial.println("[LOOP_STATUS] =============================================\n");
   }
   
   // Capture audio data
