@@ -353,7 +353,7 @@ let wss;
 let soundClassifier;
 let arduinoHandler; // Arduino WiFi handler
 const devices = {};
-const NOISE_THRESHOLD = 45; // dB - Human voice: 45-60dB alert. Non-speech sounds + Mechanical (loud typing, fans): 65dB+ alert. Movement: 55dB+ alert.
+const NOISE_THRESHOLD = 55; // dB - Alert triggers at 55dB and above. Raised speech: 55-60dB, Loud speech: 65-70dB, Non-speech: 75+dB.
 const INACTIVITY_MS = 45_000;  // 45 seconds timeout (device sends every 1s, so 45+ missed updates)
 const ALERT_THROTTLE_MS = 2000; // 2 seconds between alerts per device for real-time response
 const lastAlertTime = {}; // Track last alert time per device
@@ -370,11 +370,11 @@ function createAlertWindow() {
   const displays = screen.getAllDisplays();
   const alertDisplay = displays.length > 1 ? displays[1] : displays[0];
   
-  // Set window size to 80% of display size, centered
-  const windowWidth = Math.floor(alertDisplay.bounds.width * 0.8);
-  const windowHeight = Math.floor(alertDisplay.bounds.height * 0.8);
-  const windowX = alertDisplay.bounds.x + (alertDisplay.bounds.width - windowWidth) / 2;
-  const windowY = alertDisplay.bounds.y + (alertDisplay.bounds.height - windowHeight) / 2;
+  // Set window to full screen of the display
+  const windowWidth = alertDisplay.bounds.width;
+  const windowHeight = alertDisplay.bounds.height;
+  const windowX = alertDisplay.bounds.x;
+  const windowY = alertDisplay.bounds.y;
   
   alertWindow = new BrowserWindow({
     x: windowX,
@@ -393,11 +393,11 @@ function createAlertWindow() {
   
   alertWindow.loadFile('alert_demo.html');
   alertWindow.removeMenu();
-  
+
   alertWindow.on('closed', () => {
     alertWindow = null;
   });
-  
+
   return alertWindow;
 }
 

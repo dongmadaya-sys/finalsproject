@@ -227,9 +227,9 @@ class SoundClassifier {
    * Used as fallback when pre-trained model unavailable
    * 
    * Voice dB Classification:
-   * - 45-55 dB: Raised Speech
-   * - 56-64 dB: Loud Speech
-   * - 65+ dB: Non-speech sounds
+   * - 55-60 dB: Raised Speech
+   * - 65-70 dB: Loud Speech
+   * - 75+ dB: Non-speech sounds
    */
   classifyByHeuristic(data) {
     const { noiseLevel, lowFreqEnergy = 0.2, midFreqEnergy = 0.2, highFreqEnergy = 0.2, volatility = 0.3 } = data;
@@ -247,8 +247,8 @@ class SoundClassifier {
       return 'background';  // Default for quiet sounds
     }
     
-    // ==================== RAISED SPEECH: 45-55dB ====================
-    if (noiseLevel >= 45 && noiseLevel <= 55) {
+    // ==================== RAISED SPEECH: 55-60dB ====================
+    if (noiseLevel >= 55 && noiseLevel <= 60) {
       // Check if it's actually movement first
       if (lowFreqEnergy > 0.65 && volatility > 0.25 && volatility < 0.50) return 'movement';
       
@@ -256,8 +256,8 @@ class SoundClassifier {
       return 'raised_speech';
     }
     
-    // ==================== LOUD SPEECH: 56-64dB ====================
-    if (noiseLevel >= 56 && noiseLevel <= 64) {
+    // ==================== LOUD SPEECH: 65-70dB ====================
+    if (noiseLevel >= 65 && noiseLevel <= 70) {
       // Check if it's actually movement first
       if (lowFreqEnergy > 0.65 && volatility > 0.25 && volatility < 0.50) return 'movement';
       
@@ -265,11 +265,11 @@ class SoundClassifier {
       return 'loud_speech';
     }
     
-    // ==================== NON-SPEECH SOUNDS: 65dB AND ABOVE ====================
-    // NON-SPEECH SOUNDS (65+ dB): Impact noise, mechanical sounds, loud noises
+    // ==================== NON-SPEECH SOUNDS: 75dB AND ABOVE ====================
+    // NON-SPEECH SOUNDS (75+ dB): Impact noise, mechanical sounds, loud noises
     // Includes: claps, slams, loud typing, fans, printers, etc.
     // Signature: High spike + high frequency OR stable high frequency at high volume
-    if (noiseLevel >= 65) {
+    if (noiseLevel >= 75) {
       // Any sound at 65dB+ with high variance = impact/mechanical
       if (volatility > 0.50 && highFreqEnergy > 0.55) {
         return 'non_speech_sound';

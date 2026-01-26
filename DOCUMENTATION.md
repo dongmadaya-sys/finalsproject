@@ -483,10 +483,11 @@ return 'background'
 |----------|----------|--------|
 | < 30 | Silence | Baseline |
 | 30-55 | Normal | Monitor |
-| **55-75** | **High** | **Alert** |
-| 75+ | Very High | Emergency alert |
+| 55-60 | Raised Speech | Warning |
+| 65-70 | Loud Speech | Alert |
+| **75+** | **Non-Speech/Mechanical** | **Emergency Alert** |
 
-**Alert Trigger**: Noise level > 55 dB for > 3 seconds consecutive
+**Alert Trigger**: Noise level > 75 dB for > 3 seconds consecutive
 
 ---
 
