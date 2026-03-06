@@ -717,7 +717,15 @@ async function startWebSocketServer() {
             devices[deviceId].lastSoundType = soundType;
           }
 
-          // Forward to renderer with classified sound type
+          // ==================== HUMAN VOICE FILTER ====================
+          // STRICT FILTER: Block all audio that is NOT human voice
+          // Only process and forward audio data if it's classified as human_voice
+          if (classifiedSoundType !== 'human_voice') {
+            console.log(`[FILTER] ${deviceId}: Blocked ${classifiedSoundType} (${noiseLevel}dB) - Only human voice allowed`);
+            return; // Completely discard this audio data
+          }
+
+          // Forward to renderer with classified sound type (ONLY human_voice reaches here)
           const dataToSend = {
             deviceId,
             tableId,
