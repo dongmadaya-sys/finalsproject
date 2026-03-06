@@ -4,20 +4,23 @@
   "description": "Desktop (Electron) smart noise detection and reporting system for libraries",
   "main": "main.js",
   "scripts": {
-    "start": "node start_all.js",
-    "dev": "electron .",
-    "sim": "node device_simulator.js",
-    "sim:multi": "node multi_device_simulator.js"
+    "start": "electron .",
+    "dev": "electron ."
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "electron": "^39.2.5",
-    "electron-reload": "^1.5.0"
+    "electron-rebuild": "^3.2.9",
+    "electron-reload": "^1.5.0",
+    "node-sqlite3-wasm": "^0.8.53"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow-models/speech-commands": "^0.5.4",
+    "@tensorflow/tfjs": "^3.21.0",
+    "serialport": "^13.0.0",
+    "sql.js": "^1.13.0",
     "ws": "^8.13.0"
   }
 }

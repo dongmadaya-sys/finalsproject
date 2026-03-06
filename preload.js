@@ -9,7 +9,26 @@ try {
     onNetworkStatus: (cb) => ipcRenderer.on('network-status', (e, d) => cb(d)),
     onStartupAlert: (cb) => ipcRenderer.on('show-startup-alert', (e, d) => cb(d)),
     onShowAlert: (cb) => ipcRenderer.on('show-alert', (e, d) => cb(d)),
-    queryDevices: () => ipcRenderer.invoke('query-devices')
+    onWiFiConnected: (cb) => ipcRenderer.on('wifi-connected', (e, d) => cb(d)),
+    queryDevices: () => ipcRenderer.invoke('query-devices'),
+    updateDeviceSection: (deviceId, sectionName) => ipcRenderer.invoke('update-device-section', { deviceId, sectionName }),
+    // Database APIs
+    saveNoiseReport: (reportData) => ipcRenderer.invoke('save-noise-report', reportData),
+    logAlert: (alertData) => ipcRenderer.invoke('log-alert', alertData),
+    getNoiseReports: (options) => ipcRenderer.invoke('get-noise-reports', options),
+    getAlertsLog: (options) => ipcRenderer.invoke('get-alerts-log', options),
+    getDailySummaries: (options) => ipcRenderer.invoke('get-daily-summaries', options),
+    getDbStats: () => ipcRenderer.invoke('get-db-stats'),
+    deleteOldReports: (daysOld) => ipcRenderer.invoke('delete-old-reports', daysOld),
+    updateReportFeedback: (data) => ipcRenderer.invoke('update-report-feedback', data),
+    updateReportCorrectedType: (data) => ipcRenderer.invoke('update-report-corrected-type', data),
+    // WiFi APIs
+    scanWiFiNetworks: () => ipcRenderer.invoke('scan-wifi-networks'),
+    connectToWiFi: (ssid, password) => ipcRenderer.invoke('connect-to-wifi', { ssid, password }),
+    getCurrentWiFi: () => ipcRenderer.invoke('get-current-wifi'),
+    // Arduino APIs
+    initializeArduino: () => ipcRenderer.invoke('initialize-arduino'),
+    getArduinoStatus: () => ipcRenderer.invoke('get-arduino-status')
   });
 } catch (e) {
   console.error('Preload error:', e.message);
