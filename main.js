@@ -1327,3 +1327,220 @@ ipcMain.handle('update-report-corrected-type', (event, { reportId, correctedSoun
     return { success: false, error: error.message };
   }
 });
+
+// ==================== Settings Management ====================
+
+// Global settings storage
+let noiseTypeSettings = {
+  humanVoice: { enabled: true, frequency: 'immediate', minVolume: 40 },
+  silence: { enabled: false, frequency: 'never', duration: 300 },
+  backgroundNoise: { enabled: false, frequency: 'never', minVolume: 35, maxVolume: 55 },
+  highNoise: { enabled: true, frequency: 'immediate', threshold: 70 }
+};
+
+let scheduleSettings = {
+  dailyReportTime: '00:00',
+  dataRetention: '30',
+  autoCleanup: true
+};
+
+// Load settings from file on startup
+function loadSettings() {
+  try {
+    const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      if (settings.noiseTypeSettings) noiseTypeSettings = { ...noiseTypeSettings, ...settings.noiseTypeSettings };
+      if (settings.scheduleSettings) scheduleSettings = { ...scheduleSettings, ...settings.scheduleSettings };
+      console.log('✓ Settings loaded from file');
+    }
+  } catch (error) {
+    console.warn('⚠️ Could not load settings file:', error.message);
+  }
+}
+
+// Save settings to file
+function saveSettings() {
+  try {
+    const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+    const settings = { noiseTypeSettings, scheduleSettings };
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    console.log('✓ Settings saved to file');
+  } catch (error) {
+    console.error('Error saving settings:', error.message);
+  }
+}
+
+// Update noise type settings
+ipcMain.handle('update-noise-settings', (event, settings) => {
+  try {
+    noiseTypeSettings = { ...noiseTypeSettings, ...settings };
+    saveSettings();
+    console.log('[SETTINGS] Noise type settings updated:', settings);
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating noise settings:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+// Update schedule settings
+ipcMain.handle('update-schedule-settings', (event, settings) => {
+  try {
+    scheduleSettings = { ...scheduleSettings, ...settings };
+    saveSettings();
+
+    // Apply schedule changes
+    if (settings.dailyReportTime) {
+      scheduleDailyReports(settings.dailyReportTime);
+    }
+
+    if (settings.autoCleanup !== undefined) {
+      if (settings.autoCleanup) {
+        scheduleDataCleanup(settings.dataRetention);
+      } else {
+        clearDataCleanupSchedule();
+      }
+    }
+
+    console.log('[SETTINGS] Schedule settings updated:', settings);
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating schedule settings:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get current settings
+ipcMain.handle('get-settings', (event) => {
+  return {
+    noiseTypeSettings,
+    scheduleSettings
+  };
+});
+
+// Schedule daily reports
+function scheduleDailyReports(timeString) {
+  // Clear existing schedule
+  if (global.dailyReportTimer) {
+    clearInterval(global.dailyReportTimer);
+  }
+
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const now = new Date();
+  const scheduledTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
+
+  // If the time has already passed today, schedule for tomorrow
+  if (scheduledTime <= now) {
+    scheduledTime.setDate(scheduledTime.getDate() + 1);
+  }
+
+  const timeUntilScheduled = scheduledTime.getTime() - now.getTime();
+
+  // Schedule the first report
+  setTimeout(() => {
+    generateDailyReport();
+    // Then schedule daily repeats
+    global.dailyReportTimer = setInterval(generateDailyReport, 24 * 60 * 60 * 1000);
+  }, timeUntilScheduled);
+
+  console.log(`✓ Daily reports scheduled for ${timeString} (${Math.round(timeUntilScheduled / (1000 * 60))} minutes from now)`);
+}
+
+// Generate daily report
+function generateDailyReport() {
+  try {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split('T')[0];
+
+    // Get yesterday's data
+    const reports = getNoiseReportsSync({ date: dateStr });
+    const alerts = getAlertsLogSync({ date: dateStr });
+
+    // Generate summary
+    const summary = {
+      date: dateStr,
+      totalReports: reports.length,
+      totalAlerts: alerts.length,
+      soundTypeBreakdown: {},
+      averageNoise: 0,
+      peakNoise: 0
+    };
+
+    if (reports.length > 0) {
+      summary.averageNoise = reports.reduce((sum, r) => sum + r.average_level, 0) / reports.length;
+      summary.peakNoise = Math.max(...reports.map(r => r.peak_level));
+
+      // Count sound types
+      reports.forEach(report => {
+        const type = report.sound_type || 'unknown';
+        summary.soundTypeBreakdown[type] = (summary.soundTypeBreakdown[type] || 0) + 1;
+      });
+    }
+
+    // Save daily summary to database
+    db.run(`
+      INSERT OR REPLACE INTO daily_summaries (date, total_reports, total_alerts, sound_type_breakdown, average_noise, peak_noise)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+      dateStr,
+      summary.totalReports,
+      summary.totalAlerts,
+      JSON.stringify(summary.soundTypeBreakdown),
+      summary.averageNoise,
+      summary.peakNoise
+    ]);
+
+    saveDatabase();
+    console.log(`✓ Daily report generated for ${dateStr}: ${summary.totalReports} reports, ${summary.totalAlerts} alerts`);
+  } catch (error) {
+    console.error('Error generating daily report:', error.message);
+  }
+}
+
+// Schedule data cleanup
+function scheduleDataCleanup(retentionDays) {
+  // Clear existing schedule
+  if (global.cleanupTimer) {
+    clearInterval(global.cleanupTimer);
+  }
+
+  // Run cleanup daily at 2 AM
+  const now = new Date();
+  const cleanupTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 2, 0, 0, 0);
+
+  if (cleanupTime <= now) {
+    cleanupTime.setDate(cleanupTime.getDate() + 1);
+  }
+
+  const timeUntilCleanup = cleanupTime.getTime() - now.getTime();
+
+  setTimeout(() => {
+    deleteOldReports(retentionDays);
+    global.cleanupTimer = setInterval(() => deleteOldReports(retentionDays), 24 * 60 * 60 * 1000);
+  }, timeUntilCleanup);
+
+  console.log(`✓ Data cleanup scheduled for ${retentionDays} days retention`);
+}
+
+// Clear cleanup schedule
+function clearDataCleanupSchedule() {
+  if (global.cleanupTimer) {
+    clearInterval(global.cleanupTimer);
+    global.cleanupTimer = null;
+    console.log('✓ Data cleanup schedule cleared');
+  }
+}
+
+// Initialize settings on app start
+loadSettings();
+
+// Apply current settings
+if (scheduleSettings.autoCleanup) {
+  scheduleDataCleanup(scheduleSettings.dataRetention);
+}
+
+if (scheduleSettings.dailyReportTime) {
+  scheduleDailyReports(scheduleSettings.dailyReportTime);
+}

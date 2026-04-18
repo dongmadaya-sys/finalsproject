@@ -45,7 +45,7 @@
 // WiFi
 #define WIFI_SSID "TECNO POVA 5 Pro 5G"
 #define WIFI_PASSWORD "123446789"  // UPDATE WITH YOUR NETWORK PASSWORD
-#define SERVER_IP "10.25.163.5"  // Your PC's local IP address (new network)
+#define SERVER_IP "10.24.218.5"  // Your PC's local IP address (new network)
 #define SERVER_PORT 8080
 #define WS_PATH "/"
 

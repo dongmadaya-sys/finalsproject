@@ -7,6 +7,7 @@ let noiseChart, avgGaugeChart, peakGaugeChart, dailyChart, monthlyChart;
 const state = { devices: {}, chartLabels: [], maxPoints: 30, isLoggedIn: false, history: [], historyMax: 2880, uiReady: false, selectedDevice: null };
 const dataBuffer = []; // Buffer data until UI is ready
 let chartRefreshInterval = null; // Periodic chart refresh interval
+let analysisUpdateInterval = null; // Periodic analysis update interval
 
 // Device name mapping - customize friendly names for device IDs
 const deviceNameMap = {
@@ -313,6 +314,17 @@ function showApp() {
     }
   }, 3000); // Refresh every 3 seconds
   console.log('[SHOWAPP] ✓ Chart refresh interval started (3s)');
+
+  // Initialize data analysis after everything is ready
+  try {
+    console.log('[SHOWAPP] Initializing data analysis...');
+    startAnalysisTimer();
+    console.log('[SHOWAPP] ✓ Data analysis initialized');
+    // Perform first analysis immediately
+    setTimeout(() => performDataAnalysis(), 500);
+  } catch (e) {
+    console.warn('[SHOWAPP] Warning initializing data analysis:', e.message);
+  }
   
   console.log('[SHOWAPP] ✓ showApp() complete - app should be visible now');
 }
@@ -543,39 +555,106 @@ function initChart() {
     const devicesSection = document.getElementById('devices-section');
     const sidebarAlerts = document.getElementById('sidebar-alerts');
     const sidebarReports = document.getElementById('sidebar-reports');
+    const sidebarAnalysis = document.getElementById('sidebar-analysis');
+    const sidebarSettings = document.getElementById('sidebar-settings');
     const chartTop = document.querySelector('.chart-top');
     const dashboardTopSection = document.querySelector('.dashboard-top-section');
     const chartWrap = document.querySelector('.chart-wrap');
     const reportsView = document.getElementById('reports-view');
+    const analysisView = document.getElementById('analysis-view');
+    const settingsView = document.getElementById('settings-view');
 
     if (label === 'Alerts') {
+      // Clear analysis update interval
+      if (analysisUpdateInterval) {
+        clearInterval(analysisUpdateInterval);
+        analysisUpdateInterval = null;
+      }
       if (devicesSection) devicesSection.classList.add('hidden');
       if (sidebarAlerts) sidebarAlerts.classList.remove('hidden');
       if (sidebarReports) sidebarReports.classList.add('hidden');
+      if (sidebarAnalysis) sidebarAnalysis.classList.add('hidden');
+      if (sidebarSettings) sidebarSettings.classList.add('hidden');
       if (chartTop) chartTop.classList.remove('hidden');
       if (dashboardTopSection) dashboardTopSection.classList.remove('hidden');
       if (chartWrap) chartWrap.classList.remove('hidden');
       if (reportsView) reportsView.classList.add('hidden');
+      if (analysisView) analysisView.classList.add('hidden');
+      if (settingsView) settingsView.classList.add('hidden');
       if (sidebarAlerts) sidebarAlerts.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else if (label === 'Devices') {
+      // Clear analysis update interval
+      if (analysisUpdateInterval) {
+        clearInterval(analysisUpdateInterval);
+        analysisUpdateInterval = null;
+      }
       if (sidebarAlerts) sidebarAlerts.classList.add('hidden');
       if (sidebarReports) sidebarReports.classList.add('hidden');
+      if (sidebarAnalysis) sidebarAnalysis.classList.add('hidden');
+      if (sidebarSettings) sidebarSettings.classList.add('hidden');
       if (devicesSection) devicesSection.classList.remove('hidden');
       if (chartTop) chartTop.classList.remove('hidden');
       if (dashboardTopSection) dashboardTopSection.classList.remove('hidden');
       if (chartWrap) chartWrap.classList.remove('hidden');
       if (reportsView) reportsView.classList.add('hidden');
+      if (analysisView) analysisView.classList.add('hidden');
+      if (settingsView) settingsView.classList.add('hidden');
       if (devicesSection) devicesSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (label === 'Analysis') {
+      if (devicesSection) devicesSection.classList.add('hidden');
+      if (sidebarAlerts) sidebarAlerts.classList.add('hidden');
+      if (sidebarReports) sidebarReports.classList.add('hidden');
+      if (sidebarAnalysis) sidebarAnalysis.classList.remove('hidden');
+      if (sidebarSettings) sidebarSettings.classList.add('hidden');
+      if (chartTop) chartTop.classList.add('hidden');
+      if (dashboardTopSection) dashboardTopSection.classList.add('hidden');
+      if (chartWrap) chartWrap.classList.add('hidden');
+      if (reportsView) reportsView.classList.add('hidden');
+      if (analysisView) analysisView.classList.remove('hidden');
+      if (settingsView) settingsView.classList.add('hidden');
+      if (analysisView) analysisView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      performDataAnalysis(); // Run analysis immediately
+      // Start continuous updates for analysis
+      if (analysisUpdateInterval) clearInterval(analysisUpdateInterval);
+      analysisUpdateInterval = setInterval(() => performDataAnalysis(), 5000);
     } else if (label === 'Reports') {
+      // Clear analysis update interval
+      if (analysisUpdateInterval) {
+        clearInterval(analysisUpdateInterval);
+        analysisUpdateInterval = null;
+      }
       if (devicesSection) devicesSection.classList.add('hidden');
       if (sidebarAlerts) sidebarAlerts.classList.add('hidden');
       if (sidebarReports) sidebarReports.classList.remove('hidden');
+      if (sidebarAnalysis) sidebarAnalysis.classList.add('hidden');
+      if (sidebarSettings) sidebarSettings.classList.add('hidden');
       if (chartTop) chartTop.classList.add('hidden');
       if (dashboardTopSection) dashboardTopSection.classList.add('hidden');
       if (chartWrap) chartWrap.classList.add('hidden');
       if (reportsView) reportsView.classList.remove('hidden');
+      if (analysisView) analysisView.classList.add('hidden');
+      if (settingsView) settingsView.classList.add('hidden');
       if (reportsView) reportsView.scrollIntoView({ behavior: 'smooth', block: 'start' });
       loadReports();
+    } else if (label === 'Settings') {
+      // Clear analysis update interval
+      if (analysisUpdateInterval) {
+        clearInterval(analysisUpdateInterval);
+        analysisUpdateInterval = null;
+      }
+      if (devicesSection) devicesSection.classList.add('hidden');
+      if (sidebarAlerts) sidebarAlerts.classList.add('hidden');
+      if (sidebarReports) sidebarReports.classList.add('hidden');
+      if (sidebarAnalysis) sidebarAnalysis.classList.add('hidden');
+      if (sidebarSettings) sidebarSettings.classList.remove('hidden');
+      if (chartTop) chartTop.classList.add('hidden');
+      if (dashboardTopSection) dashboardTopSection.classList.add('hidden');
+      if (chartWrap) chartWrap.classList.add('hidden');
+      if (reportsView) reportsView.classList.add('hidden');
+      if (analysisView) analysisView.classList.add('hidden');
+      if (settingsView) settingsView.classList.remove('hidden');
+      if (settingsView) settingsView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      loadSettings();
     }
   }));
 
@@ -728,42 +807,13 @@ function handleDeviceData(data) {
   const isTriggeredSound = soundType && soundType !== 'background' && soundType !== '';
   
   if (isTriggeredSound) {
-    // IMMEDIATELY save triggered sounds to database
-    if (!dev.triggeredSounds) dev.triggeredSounds = [];
-    dev.triggeredSounds.push(soundType);
-    
-    // Calculate current statistics
-    const average = dev.readings.length > 0 
-      ? dev.readings.reduce((a, b) => a + b, 0) / dev.readings.length 
-      : noiseLevel;
-    const peak = dev.readings.length > 0 
-      ? Math.max(...dev.readings) 
-      : noiseLevel;
-    
-    console.log(`[TRIGGER] ${soundType.toUpperCase()} detected! Saving to database immediately...`);
-    
-    // Save immediately when triggered
-    saveNoiseReportToDb(deviceId, getFriendlyDeviceName(deviceId), average, peak, soundType);
-    
-    // Add to both global and per-device history
-    const historyEntry = { timestamp: ts, avg: average, peak: peak };
-    state.history.push(historyEntry);
-    if (state.history.length > state.historyMax) state.history.splice(0, state.history.length - state.historyMax);
-    if (!dev.deviceHistory) dev.deviceHistory = [];
-    dev.deviceHistory.push(historyEntry);
-    if (dev.deviceHistory.length > state.historyMax) dev.deviceHistory.splice(0, dev.deviceHistory.length - state.historyMax);
-    
-    // Reset readings after triggered save
-    dev.readings = [];
-    dev.triggeredSounds = [];
-    dev.readingCount = 0;
-  } else {
-    // Non-triggered (background) - accumulate for periodic save
-    if (!dev.readingCount) dev.readingCount = 0;
-    dev.readingCount++;
-    
-    // Still save every 10 readings for background data collection
-    if (dev.readingCount >= 10) {
+    // Check settings before logging triggered sounds
+    if (shouldLogNoise(soundType, noiseLevel)) {
+      // IMMEDIATELY save triggered sounds to database
+      if (!dev.triggeredSounds) dev.triggeredSounds = [];
+      dev.triggeredSounds.push(soundType);
+      
+      // Calculate current statistics
       const average = dev.readings.length > 0 
         ? dev.readings.reduce((a, b) => a + b, 0) / dev.readings.length 
         : noiseLevel;
@@ -771,7 +821,74 @@ function handleDeviceData(data) {
         ? Math.max(...dev.readings) 
         : noiseLevel;
       
-      // Save background readings (no triggered sound)
+      console.log(`[TRIGGER] ${soundType.toUpperCase()} detected! Saving to database immediately...`);
+      
+      // Save immediately when triggered
+      saveNoiseReportToDb(deviceId, getFriendlyDeviceName(deviceId), average, peak, soundType);
+      
+      // Add to both global and per-device history
+      const historyEntry = { timestamp: ts, avg: average, peak: peak };
+      state.history.push(historyEntry);
+      if (state.history.length > state.historyMax) state.history.splice(0, state.history.length - state.historyMax);
+      if (!dev.deviceHistory) dev.deviceHistory = [];
+      dev.deviceHistory.push(historyEntry);
+      if (dev.deviceHistory.length > state.historyMax) dev.deviceHistory.splice(0, dev.deviceHistory.length - state.historyMax);
+      
+      // Reset readings after triggered save
+      dev.readings = [];
+      dev.triggeredSounds = [];
+      dev.readingCount = 0;
+    } else {
+      console.log(`[FILTER] ${soundType} (${noiseLevel}dB) blocked by settings - not logging`);
+    }
+  } else {
+    // Non-triggered (background) - check frequency settings
+    const frequency = getLoggingFrequency(soundType || 'background');
+    
+    if (!dev.readingCount) dev.readingCount = 0;
+    dev.readingCount++;
+    
+    // Check if we should log based on frequency
+    let shouldLog = false;
+    
+    switch (frequency) {
+      case 'immediate':
+        shouldLog = true;
+        break;
+      case '5sec':
+        shouldLog = (dev.readingCount % Math.ceil(5 / 0.1)) === 0; // Assuming ~10 readings per second
+        break;
+      case '30sec':
+        shouldLog = (dev.readingCount % Math.ceil(30 / 0.1)) === 0;
+        break;
+      case '5min':
+        shouldLog = (dev.readingCount % Math.ceil(300 / 0.1)) === 0;
+        break;
+      case '10min':
+        shouldLog = (dev.readingCount % Math.ceil(600 / 0.1)) === 0;
+        break;
+      case '30min':
+        shouldLog = (dev.readingCount % Math.ceil(1800 / 0.1)) === 0;
+        break;
+      case '1hour':
+        shouldLog = (dev.readingCount % Math.ceil(3600 / 0.1)) === 0;
+        break;
+      case '4hours':
+        shouldLog = (dev.readingCount % Math.ceil(14400 / 0.1)) === 0;
+        break;
+      default:
+        shouldLog = false;
+    }
+    
+    if (shouldLog && shouldLogNoise(soundType || 'background', noiseLevel)) {
+      const average = dev.readings.length > 0 
+        ? dev.readings.reduce((a, b) => a + b, 0) / dev.readings.length 
+        : noiseLevel;
+      const peak = dev.readings.length > 0 
+        ? Math.max(...dev.readings) 
+        : noiseLevel;
+      
+      // Save background readings
       saveNoiseReportToDb(deviceId, getFriendlyDeviceName(deviceId), average, peak, null);
       
       // Add to both global and per-device history
@@ -842,6 +959,13 @@ function handleDeviceData(data) {
     computeAndUpdateMetrics(ts); 
   } catch (e) { 
     console.error('[ERROR] computeAndUpdateMetrics failed:', e);
+  }
+
+  // REAL-TIME ANALYSIS: Update analysis immediately when new data arrives
+  try {
+    performDataAnalysis();
+  } catch (e) {
+    console.error('[ERROR] performDataAnalysis failed:', e);
   }
 }
 
@@ -1444,11 +1568,20 @@ function showNoiseAlert() {
 window.addEventListener('DOMContentLoaded', () => {
   console.log('[DOMContentLoaded] Page loaded, initializing');
   
-  // Always start fresh with login screen - clear any old session
-  console.log('[DOMContentLoaded] Clearing old session data for fresh start');
-  localStorage.removeItem('isLoggedIn');
-  localStorage.removeItem('username');
-  state.isLoggedIn = false;
+  // Check if user has a previous session
+  const wasLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const username = localStorage.getItem('username');
+  
+  // Only clear session if user explicitly has no previous login
+  if (!wasLoggedIn) {
+    console.log('[DOMContentLoaded] No previous session, clearing data');
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('username');
+    state.isLoggedIn = false;
+  } else {
+    console.log('[DOMContentLoaded] Previous session found for user:', username);
+    state.isLoggedIn = true;
+  }
   
   if (window.api && window.api.onNetworkStatus) window.api.onNetworkStatus(updateNetworkStatus);
   
@@ -1465,8 +1598,19 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  console.log('[DOMContentLoaded] Showing login screen');
-  showLoginScreen();
+  // If previous session exists, restore it; otherwise show login
+  if (wasLoggedIn && username) {
+    console.log('[DOMContentLoaded] Restoring previous session');
+    try {
+      showApp();
+    } catch (e) {
+      console.error('[DOMContentLoaded] Error restoring session:', e.message);
+      showLoginScreen();
+    }
+  } else {
+    console.log('[DOMContentLoaded] Showing login screen');
+    showLoginScreen();
+  }
   console.log('[DOMContentLoaded] Done');
 });
 
@@ -2021,4 +2165,487 @@ async function handleCorrectedType(event, reportId) {
 if (state.uiReady && state.isLoggedIn) {
   setupReportsEventListeners();
 }
+
+// ==================== Data Analysis Integration ====================
+
+/**
+ * Perform comprehensive data analysis and display insights
+ * This function integrates the new DataAnalysis module
+ * REAL-TIME: Pulls data from state.devices and state.history for accurate live values
+ */
+function performDataAnalysis() {
+  try {
+    if (!window.DataAnalysis) {
+      console.debug('[DATA_ANALYSIS] DataAnalysis module not loaded');
+      return;
+    }
+
+    // Ensure UI is ready and logged in
+    if (!state.isLoggedIn || !state.uiReady) {
+      console.debug('[DATA_ANALYSIS] UI not ready yet');
+      return;
+    }
+
+    // Get REAL-TIME data from state.devices (most recent values)
+    let currentAvg = 0;
+    let currentPeak = 0;
+    let deviceCount = 0;
+    
+    // Calculate average across all connected devices
+    for (const deviceId in state.devices) {
+      const dev = state.devices[deviceId];
+      if (dev && dev.readings && dev.readings.length > 0) {
+        const devAvg = dev.readings.reduce((a, b) => a + b, 0) / dev.readings.length;
+        const devPeak = Math.max(...dev.readings);
+        currentAvg += devAvg;
+        currentPeak = Math.max(currentPeak, devPeak);
+        deviceCount++;
+      }
+    }
+    
+    // If no readings in state, fall back to DOM elements
+    if (deviceCount > 0) {
+      currentAvg = currentAvg / deviceCount;
+    } else {
+      currentAvg = parseFloat(document.getElementById('avgValue')?.textContent) || 0;
+      currentPeak = parseFloat(document.getElementById('peakValue')?.textContent) || 0;
+    }
+
+    const gaugeData = { avg: currentAvg, peak: currentPeak };
+
+    // Get chart data from live charts
+    const liveChartData = noiseChart ? {
+      labels: noiseChart.data.labels,
+      datasets: noiseChart.data.datasets
+    } : null;
+
+    const dailyData = dailyChart ? {
+      labels: dailyChart.data.labels,
+      datasets: dailyChart.data.datasets
+    } : null;
+
+    const monthlyData = monthlyChart ? {
+      labels: monthlyChart.data.labels,
+      datasets: monthlyChart.data.datasets
+    } : null;
+
+    // Perform comprehensive analysis
+    const analysis = window.DataAnalysis.performComprehensiveAnalysis(
+      gaugeData,
+      liveChartData,
+      dailyData,
+      monthlyData,
+      state.selectedDevice
+    );
+
+    // Update UI with analysis insights
+    updateAnalysisDisplay(analysis);
+
+  } catch (error) {
+    console.error('[DATA_ANALYSIS] Error performing analysis:', error.message);
+  }
+}
+
+/**
+ * Update UI to display analysis insights
+ */
+function updateAnalysisDisplay(analysis) {
+  try {
+    // Update header status
+    const statusIndicator = document.getElementById('analysis-status');
+    if (statusIndicator) {
+      statusIndicator.textContent = `${analysis.overallStatus.charAt(0).toUpperCase() + analysis.overallStatus.slice(1)}`;
+      statusIndicator.className = `analysis-status ${analysis.overallStatus}`;
+    }
+
+    // Update analysis view panel
+    const statusBadge = document.getElementById('analysis-status-badge');
+    if (statusBadge) {
+      statusBadge.textContent = analysis.overallStatus.charAt(0).toUpperCase() + analysis.overallStatus.slice(1);
+      statusBadge.className = `status-badge ${analysis.overallStatus}`;
+    }
+
+    const riskLevelEl = document.getElementById('analysis-risk-level');
+    if (riskLevelEl) {
+      riskLevelEl.textContent = analysis.riskLevel.charAt(0).toUpperCase() + analysis.riskLevel.slice(1);
+    }
+
+    // Update insights list
+    const insightsList = document.getElementById('analysis-insights-list');
+    if (insightsList) {
+      if (analysis.insights && analysis.insights.length > 0) {
+        insightsList.innerHTML = analysis.insights.map((insight, idx) => 
+          `<li><strong>${idx + 1}.</strong> ${insight}</li>`
+        ).join('');
+      } else {
+        insightsList.innerHTML = '<li class="loading">No insights yet - collecting data...</li>';
+      }
+    }
+
+    // Update recommendations list
+    const recommendationsList = document.getElementById('analysis-recommendations-list');
+    if (recommendationsList) {
+      if (analysis.recommendations && analysis.recommendations.length > 0) {
+        recommendationsList.innerHTML = analysis.recommendations.map((rec, idx) => 
+          `<li><strong>${idx + 1}.</strong> ${rec}</li>`
+        ).join('');
+      } else {
+        recommendationsList.innerHTML = '<li class="loading">All metrics within acceptable range</li>';
+      }
+    }
+
+    // Update component analysis
+    const componentsDiv = document.getElementById('analysis-components');
+    if (componentsDiv && analysis.components) {
+      const componentHtml = `
+        <div class="component-card">
+          <h5>Gauges</h5>
+          <p class="component-status ${analysis.components.gauges?.status}\">${analysis.components.gauges?.status || 'N/A'}</p>
+          <p class="component-detail\">Risk: ${analysis.components.gauges?.riskLevel || 'N/A'}</p>
+        </div>
+        <div class="component-card">
+          <h5>Live Chart</h5>
+          <p class="component-status ${analysis.components.liveChart?.trend}\">${analysis.components.liveChart?.trend || 'N/A'}</p>
+          <p class="component-detail\">Volatility: ${analysis.components.liveChart?.volatility || 'N/A'}</p>
+        </div>
+        <div class="component-card">
+          <h5>Daily Trends</h5>
+          <p class="component-detail\">Violations: ${analysis.components.dailyTrends?.violations || 0}</p>
+          <p class="component-detail\">Avg: ${analysis.components.dailyTrends?.averageNoise?.toFixed(1) || 'N/A'} dB</p>
+        </div>
+        <div class="component-card">
+          <h5>Monthly Overview</h5>
+          <p class="component-status ${analysis.components.monthlyOverview?.trend}\">${analysis.components.monthlyOverview?.trend || 'N/A'}</p>
+          <p class="component-detail\">Avg: ${analysis.components.monthlyOverview?.averageNoise?.toFixed(1) || 'N/A'} dB</p>
+        </div>
+      `;
+      componentsDiv.innerHTML = componentHtml;
+    }
+
+    // Log to console as well
+    console.log('[DATA_ANALYSIS] Analysis Results:', analysis);
+
+  } catch (error) {
+    console.error('[DATA_ANALYSIS] Error updating analysis display:', error.message);
+  }
+}
+
+/**
+ * Auto-run analysis periodically
+ */
+// Store original functions before wrapping
+const _originalComputeAndUpdateMetrics = typeof computeAndUpdateMetrics !== 'undefined' ? computeAndUpdateMetrics : null;
+const _originalUpdateHistoryCharts = typeof updateHistoryCharts !== 'undefined' ? updateHistoryCharts : null;
+const _originalUpdateHistoryChartsForDevice = typeof updateHistoryChartsForDevice !== 'undefined' ? updateHistoryChartsForDevice : null;
+
+function startAnalysisTimer() {
+  // Run analysis every 5 seconds for real-time continuous updates
+  setInterval(() => {
+    if (state.isLoggedIn && state.uiReady) {
+      performDataAnalysis();
+    }
+  }, 5000); // Check frequently for real-time updates
+
+  // Wrap computeAndUpdateMetrics to run analysis after metrics change
+  if (_originalComputeAndUpdateMetrics) {
+    window.computeAndUpdateMetrics = function(ts) {
+      _originalComputeAndUpdateMetrics.call(this, ts);
+      // Run analysis after metrics update
+      setTimeout(() => performDataAnalysis(), 200);
+    };
+  }
+
+  // Wrap updateHistoryCharts to run analysis after chart updates
+  if (_originalUpdateHistoryCharts) {
+    window.updateHistoryCharts = function() {
+      _originalUpdateHistoryCharts.apply(this, arguments);
+      // Run analysis after charts update
+      setTimeout(() => performDataAnalysis(), 200);
+    };
+  }
+
+  // Wrap updateHistoryChartsForDevice
+  if (_originalUpdateHistoryChartsForDevice) {
+    window.updateHistoryChartsForDevice = function(deviceId) {
+      _originalUpdateHistoryChartsForDevice.apply(this, arguments);
+      // Run analysis after device chart updates
+      setTimeout(() => performDataAnalysis(), 200);
+    };
+  }
+}
+
+// Note: Analysis initialization is now handled in showApp() when UI is fully ready
+
+// ==================== Settings Management ====================
+
+/**
+ * Check if noise should be logged based on current settings
+ */
+function shouldLogNoise(soundType, noiseLevel) {
+  try {
+    const settings = JSON.parse(localStorage.getItem('noiseTypeSettings')) || getDefaultNoiseSettings();
+
+    switch (soundType) {
+      case 'human_voice':
+        return settings.humanVoice.enabled && noiseLevel >= settings.humanVoice.minVolume;
+
+      case 'silence':
+        return settings.silence.enabled;
+
+      case 'background':
+        return settings.backgroundNoise.enabled &&
+               noiseLevel >= settings.backgroundNoise.minVolume &&
+               noiseLevel <= settings.backgroundNoise.maxVolume;
+
+      default:
+        // High noise alert - check if it exceeds threshold
+        return settings.highNoise.enabled && noiseLevel >= settings.highNoise.threshold;
+    }
+  } catch (error) {
+    console.error('[SETTINGS] Error checking logging settings:', error.message);
+    // Default to logging human voice and high noise
+    return soundType === 'human_voice' || noiseLevel >= 70;
+  }
+}
+
+/**
+ * Get logging frequency for sound type
+ */
+function getLoggingFrequency(soundType) {
+  try {
+    const settings = JSON.parse(localStorage.getItem('noiseTypeSettings')) || getDefaultNoiseSettings();
+
+    switch (soundType) {
+      case 'human_voice':
+        return settings.humanVoice.frequency;
+      case 'silence':
+        return settings.silence.frequency;
+      case 'background':
+        return settings.backgroundNoise.frequency;
+      default:
+        return settings.highNoise.frequency;
+    }
+  } catch (error) {
+    return 'immediate';
+  }
+}
+function loadSettings() {
+  try {
+    // Load noise type settings
+    const noiseSettings = JSON.parse(localStorage.getItem('noiseTypeSettings')) || getDefaultNoiseSettings();
+
+    // Human Voice settings
+    document.getElementById('log-human-voice').checked = noiseSettings.humanVoice.enabled;
+    document.getElementById('human-voice-frequency').value = noiseSettings.humanVoice.frequency;
+    document.getElementById('human-voice-min-volume').value = noiseSettings.humanVoice.minVolume;
+
+    // Silence settings
+    document.getElementById('log-silence').checked = noiseSettings.silence.enabled;
+    document.getElementById('silence-frequency').value = noiseSettings.silence.frequency;
+    document.getElementById('silence-duration').value = noiseSettings.silence.duration;
+
+    // Background Noise settings
+    document.getElementById('log-background-noise').checked = noiseSettings.backgroundNoise.enabled;
+    document.getElementById('background-frequency').value = noiseSettings.backgroundNoise.frequency;
+    document.getElementById('background-min-volume').value = noiseSettings.backgroundNoise.minVolume;
+    document.getElementById('background-max-volume').value = noiseSettings.backgroundNoise.maxVolume;
+
+    // High Noise settings
+    document.getElementById('log-high-noise').checked = noiseSettings.highNoise.enabled;
+    document.getElementById('high-noise-frequency').value = noiseSettings.highNoise.frequency;
+    document.getElementById('high-noise-threshold').value = noiseSettings.highNoise.threshold;
+
+    // Load schedule settings
+    const scheduleSettings = JSON.parse(localStorage.getItem('scheduleSettings')) || getDefaultScheduleSettings();
+
+    document.getElementById('daily-report-time').value = scheduleSettings.dailyReportTime;
+    document.getElementById('data-retention').value = scheduleSettings.dataRetention;
+    document.getElementById('auto-cleanup').checked = scheduleSettings.autoCleanup;
+
+    console.log('[SETTINGS] Settings loaded successfully');
+  } catch (error) {
+    console.error('[SETTINGS] Error loading settings:', error.message);
+  }
+}
+
+/**
+ * Get default noise type settings
+ */
+function getDefaultNoiseSettings() {
+  return {
+    humanVoice: {
+      enabled: true,
+      frequency: 'immediate',
+      minVolume: 40
+    },
+    silence: {
+      enabled: false,
+      frequency: 'never',
+      duration: 300
+    },
+    backgroundNoise: {
+      enabled: false,
+      frequency: 'never',
+      minVolume: 35,
+      maxVolume: 55
+    },
+    highNoise: {
+      enabled: true,
+      frequency: 'immediate',
+      threshold: 70
+    }
+  };
+}
+
+/**
+ * Get default schedule settings
+ */
+function getDefaultScheduleSettings() {
+  return {
+    dailyReportTime: '00:00',
+    dataRetention: '30',
+    autoCleanup: true
+  };
+}
+
+/**
+ * Save noise type settings to localStorage
+ */
+function saveNoiseSettings() {
+  try {
+    const settings = {
+      humanVoice: {
+        enabled: document.getElementById('log-human-voice').checked,
+        frequency: document.getElementById('human-voice-frequency').value,
+        minVolume: parseInt(document.getElementById('human-voice-min-volume').value)
+      },
+      silence: {
+        enabled: document.getElementById('log-silence').checked,
+        frequency: document.getElementById('silence-frequency').value,
+        duration: parseInt(document.getElementById('silence-duration').value)
+      },
+      backgroundNoise: {
+        enabled: document.getElementById('log-background-noise').checked,
+        frequency: document.getElementById('background-frequency').value,
+        minVolume: parseInt(document.getElementById('background-min-volume').value),
+        maxVolume: parseInt(document.getElementById('background-max-volume').value)
+      },
+      highNoise: {
+        enabled: document.getElementById('log-high-noise').checked,
+        frequency: document.getElementById('high-noise-frequency').value,
+        threshold: parseInt(document.getElementById('high-noise-threshold').value)
+      }
+    };
+
+    localStorage.setItem('noiseTypeSettings', JSON.stringify(settings));
+    console.log('[SETTINGS] Noise type settings saved');
+
+    // Send settings to main process for real-time application
+    if (window.api && window.api.updateNoiseSettings) {
+      window.api.updateNoiseSettings(settings);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[SETTINGS] Error saving noise settings:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Save schedule settings to localStorage
+ */
+function saveScheduleSettings() {
+  try {
+    const settings = {
+      dailyReportTime: document.getElementById('daily-report-time').value,
+      dataRetention: document.getElementById('data-retention').value,
+      autoCleanup: document.getElementById('auto-cleanup').checked
+    };
+
+    localStorage.setItem('scheduleSettings', JSON.stringify(settings));
+    console.log('[SETTINGS] Schedule settings saved');
+
+    // Send settings to main process for scheduling
+    if (window.api && window.api.updateScheduleSettings) {
+      window.api.updateScheduleSettings(settings);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[SETTINGS] Error saving schedule settings:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Reset noise settings to defaults
+ */
+function resetNoiseSettings() {
+  const defaults = getDefaultNoiseSettings();
+
+  document.getElementById('log-human-voice').checked = defaults.humanVoice.enabled;
+  document.getElementById('human-voice-frequency').value = defaults.humanVoice.frequency;
+  document.getElementById('human-voice-min-volume').value = defaults.humanVoice.minVolume;
+
+  document.getElementById('log-silence').checked = defaults.silence.enabled;
+  document.getElementById('silence-frequency').value = defaults.silence.frequency;
+  document.getElementById('silence-duration').value = defaults.silence.duration;
+
+  document.getElementById('log-background-noise').checked = defaults.backgroundNoise.enabled;
+  document.getElementById('background-frequency').value = defaults.backgroundNoise.frequency;
+  document.getElementById('background-min-volume').value = defaults.backgroundNoise.minVolume;
+  document.getElementById('background-max-volume').value = defaults.backgroundNoise.maxVolume;
+
+  document.getElementById('log-high-noise').checked = defaults.highNoise.enabled;
+  document.getElementById('high-noise-frequency').value = defaults.highNoise.frequency;
+  document.getElementById('high-noise-threshold').value = defaults.highNoise.threshold;
+
+  console.log('[SETTINGS] Noise settings reset to defaults');
+}
+
+/**
+ * Reset schedule settings to defaults
+ */
+function resetScheduleSettings() {
+  const defaults = getDefaultScheduleSettings();
+
+  document.getElementById('daily-report-time').value = defaults.dailyReportTime;
+  document.getElementById('data-retention').value = defaults.dataRetention;
+  document.getElementById('auto-cleanup').checked = defaults.autoCleanup;
+
+  console.log('[SETTINGS] Schedule settings reset to defaults');
+}
+
+// Initialize settings event listeners when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  // Settings event listeners
+  document.getElementById('save-noise-settings')?.addEventListener('click', () => {
+    if (saveNoiseSettings()) {
+      alert('Noise type settings saved successfully!');
+    } else {
+      alert('Error saving noise settings. Please try again.');
+    }
+  });
+
+  document.getElementById('reset-noise-settings')?.addEventListener('click', () => {
+    if (confirm('Reset all noise type settings to defaults?')) {
+      resetNoiseSettings();
+    }
+  });
+
+  document.getElementById('save-schedule-settings')?.addEventListener('click', () => {
+    if (saveScheduleSettings()) {
+      alert('Schedule settings saved successfully!');
+    } else {
+      alert('Error saving schedule settings. Please try again.');
+    }
+  });
+
+  document.getElementById('reset-schedule-settings')?.addEventListener('click', () => {
+    if (confirm('Reset all schedule settings to defaults?')) {
+      resetScheduleSettings();
+    }
+  });
+});
 
